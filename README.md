@@ -1,51 +1,146 @@
-# WorldQuant Brain Alpha Generator
+# WorldQuant Alpha Generator
 
-Leverage WorldQuant API to generate alpha signals, and mine promising alpha expressions.
+This project is a collection of scripts that generate and submit alphas to the WorldQuant platform.
 
-## Features
+<!-- Beautiful ASCII  art -->
 
-- Generate alpha signals
-- Mine promising alpha expressions
-- Test alpha expressions
-- Optimize alpha expressions
-- Generate alpha expressions
 
-## Getting Started
+```
+ __      __            .__       .___                          __            .__                     
+/  \    /  \___________|  |    __| _/________ _______    _____/  |_    _____ |__| ____   ___________ 
+\   \/\/   /  _ \_  __ \  |   / __ |/ ____/  |  \__  \  /    \   __\  /     \|  |/    \_/ __ \_  __ \
+ \        (  <_> )  | \/  |__/ /_/ < <_|  |  |  // __ \|   |  \  |   |  Y Y  \  |   |  \  ___/|  | \/
+  \__/\  / \____/|__|  |____/\____ |\__   |____/(____  /___|  /__|   |__|_|  /__|___|  /\___  >__|   
+       \/                         \/   |__|          \/     \/             \/        \/     \/       
+```
 
-### Prerequisites
 
-- Python 3.8+
-- Required packages listed in `requirements.txt`
+
+
+
+
+
+
+
+
+
+
+
+# Rust Alpha Generator
+
+This is a Rust implementation of the alpha generator.
+
+## Installation
+
+```bash
+cargo build --release
+```
+
+## Usage
+
+```bash
+cargo run --release
+```
+
+# Python Alpha Generator
+
+This is a Python implementation of the alpha generator.
+
+## Pre-Consultant
 
 ### Installation
-
-1. Clone the repository
-2. Install the required packages using pip:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Set up your credentials in `credential.txt`
-
-4. Run the application:
+### Usage
 
 ```bash
 python alpha_generator.py
 ```
 
 ```bash
-python promising_alpha_miner.py
+python alpha_expression_miner.py --expression "expression"
 ```
 
-## Configuration
-
-### Credentials Setup
-
-1. Create a `credential.txt` file in the root directory
-2. Add your WorldQuant Brain credentials in JSON format:
-
-```json
-["your email", "your password"]
+```bash
+python clean_up_logs.py
 ```
+
+```bash
+python successful_alpha_submitter.py
+```
+
+
+
+
+## Consultant
+
+### Installation
+
+```bash
+pip install -r requirements.txt
+```
+
+### Usage
+
+```bash
+python machine_miner.py
+```
+
+# TODO
+- Integrate more templates
+- Integrate more datafields
+- Integrate more operators
+- Integrate more regions
+- Integrate more universes
+- Integrate more alphas
+
+
+# Contribute
+## How to Contribute
+
+We welcome contributions from the community! Here's how you can help:
+
+### Code Contributions
+
+1. Fork the repository
+2. Create a new branch (`git checkout -b feature/improvement`)
+3. Make your changes
+4. Run tests to ensure nothing is broken
+5. Commit your changes (`git commit -am 'Add new feature'`)
+6. Push to the branch (`git push origin feature/improvement`)
+7. Create a Pull Request
+
+### Bug Reports & Feature Requests
+
+- Use the GitHub issue tracker to report bugs
+- Clearly describe the issue including steps to reproduce
+- Make feature requests through GitHub issues
+- Tag issues appropriately
+
+### Documentation
+
+- Help improve documentation
+- Add code comments where needed
+- Update the README with new features
+- Write tutorials and examples
+
+### Guidelines
+
+- Follow existing code style and conventions
+- Write clear commit messages
+- Add tests for new features
+- Update documentation for changes
+- Be respectful to other contributors
+
+### Getting Help
+
+- Join our community chat
+- Ask questions in GitHub issues
+- Read existing documentation
+- Check closed issues for solutions
+
+We appreciate all contributions that help make this project better!
 
