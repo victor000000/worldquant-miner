@@ -11,4 +11,6 @@ target/
 # VSCode
 .vscode/
 
+credential.txt
 
+*.log
