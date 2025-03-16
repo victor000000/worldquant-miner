@@ -403,11 +403,10 @@ We welcome contributions from the community! Here's how you can help:
 We appreciate all contributions that help make this project better!
 
 ## TODO
-- Integrate more templates
-- Integrate more datafields
-- Integrate more operators
-- Integrate more regions
-- Integrate more universes
-- Integrate more alphas
-- Add financial research pdf alpha expression generator
-
+- [ ] Intelligently adjust experiement parameters after promising alpha is found
+  - [ ] For example, adjust truncation, pasteurization, decay, etc.
+- [ ] For non-ai single simulate for pre-consultant phase, remove not-permitted operators
+- [ ] Add financial research pdf alpha expression generator
+- [ ] Add GUI for non-technical users
+- [ ] Add more templates
+- [ ] Add template miner
