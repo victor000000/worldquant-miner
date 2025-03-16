@@ -98,7 +98,7 @@ class AlphaExpressionMiner:
                 'delay': 1,
                 'decay': 0,
                 'neutralization': 'INDUSTRY',
-                'truncation': 0.08,
+                'truncation': 0.01,
                 'pasteurization': 'ON',
                 'unitHandling': 'VERIFY',
                 'nanHandling': 'OFF',
