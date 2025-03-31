@@ -1,6 +1,6 @@
 # WorldQuant Alpha Generator
 
-This project is a collection of scripts that generate, polish, test, and submit alphas to the WorldQuant platform.
+This project is a collection of scripts that generate and submit alphas to the WorldQuant platform.
 
 <!-- Beautiful ASCII  art -->
 
@@ -14,350 +14,125 @@ This project is a collection of scripts that generate, polish, test, and submit 
        \/                         \/   |__|          \/     \/             \/        \/     \/       
 ```
 
-## Project Architecture
 
-The WorldQuant Alpha Generator is designed with a multi-phase approach to alpha generation, testing, and submission. The architecture is structured into two main components:
 
-### 1. Pre-Consultant Phase
 
-In the pre-consultant phase, the tools focus on single alpha generation, polishing, and evaluation. Key characteristics:
-- Single alpha simulation at a time
-- Initial exploration and testing
-- Manual refinement of alphas
-- Basic analysis and submission
 
-### 2. Consultant Phase
 
-The consultant phase enables more advanced workflows:
-- Multiple simultaneous alpha simulations
-- Automated batch processing
-- More sophisticated analysis
-- Production-ready alpha management
 
-This two-phase approach allows users to progressively move from exploration to production.
 
-### Architecture Diagram
 
-```
-+-------------------------------------------+
-|                USER INTERFACE             |
-+-------------------------------------------+
-                       |
-                       v
-+-------------------------------------------+
-|            AUTHENTICATION LAYER           |
-|        (WorldQuant & MoonshotAI)          |
-+-------------------------------------------+
-                       |
-                       v
-+---------------------+   +-------------------+
-|                     |   |                   |
-|  PRE-CONSULTANT     |   |  CONSULTANT       |
-|  PHASE              |   |  PHASE            |
-|                     |   |                   |
-| +---------------+   |   | +---------------+ |
-| | Alpha         |   |   | | Machine       | |
-| | Generator     |<--|-->| | Miner         | |
-| +---------------+   |   | +---------------+ |
-|        |            |   |        |          |
-|        v            |   |        v          |
-| +---------------+   |   | +---------------+ |
-| | Alpha         |   |   | | Batch         | |
-| | Polisher      |   |   | | Processing    | |
-| +---------------+   |   | +---------------+ |
-|        |            |   |        |          |
-|        v            |   |        v          |
-| +---------------+   |   | +---------------+ |
-| | Expression    |   |   | | Advanced      | |
-| | Miner         |   |   | | Analytics     | |
-| +---------------+   |   | +---------------+ |
-|        |            |   |        |          |
-|        v            |   |        v          |
-| +---------------+   |   | +---------------+ |
-| | Submission    |   |   | | Portfolio     | |
-| | Handler       |-->|-->| | Optimization  | |
-| +---------------+   |   | +---------------+ |
-|                     |   |                   |
-+---------------------+   +-------------------+
-                       |
-                       v
-+-------------------------------------------+
-|                 WORLDQUANT                |
-|             BRAIN PLATFORM API            |
-+-------------------------------------------+
-```
 
-### Usage Flow Diagram
 
-```
-START
-  |
-  v
-+--------------------+
-| Authentication     |
-| (credentials.txt)  |
-+--------------------+
-  |
-  v
-+--------------------+     +--------------------+
-| Choose Tool:       |---->| Alpha Generator    |
-|                    |     | (Create new alpha) |
-| * Alpha Generator  |     +--------------------+
-| * Alpha Polisher   |            |
-| * Expression Miner |            v
-| * Alpha Submitter  |     +--------------------+
-+--------------------+     | Simulation         |
-  |                        +--------------------+
-  |                              |
-  v                              v
-+--------------------+     +--------------------+
-| Alpha Polisher     |     | Analysis           |
-| (Refine existing   |     | (Evaluate metrics) |
-|  alpha)            |     +--------------------+
-+--------------------+           |
-  |                              |
-  v                              v
-+--------------------+     +--------------------+
-| Custom Requirements|---->| Good Performance?  |
-| (IR, Turnover...)  |     | (Yes/No)           |
-+--------------------+     +--------------------+
-                             |            |
-                             | Yes        | No
-                             v            v
-                      +-------------+ +-------------+
-                      | Submit      | | Further     |
-                      | Alpha       | | Refinement  |
-                      +-------------+ +-------------+
-                             |            |
-                             v            |
-                      +-------------+     |
-                      | Track       |<----+
-                      | Results     |
-                      +-------------+
-                             |
-                             v
-                           END
-```
 
-## Directory Structure
 
-```
-worldquant-miner/
-├── python/
-│   ├── pre_consultant/            # Tools for initial alpha development
-│   │   ├── alpha_generator.py     # Generate alphas with guided approach
-│   │   ├── alpha_polisher.py      # Polish existing alphas with AI
-│   │   ├── alpha_expression_miner.py # Mine for potential alpha expressions
-│   │   ├── alpha_101_testing.py   # Test alphas against standard algorithms
-│   │   ├── successful_alpha_submitter.py # Submit validated alphas
-│   │   ├── promising_alpha_miner.py # Find promising alpha patterns
-│   │   └── clean_up_logs.py       # Maintain log files
-│   │
-│   ├── pre_consultant_non_ai/     # Non-AI versions of tools
-│   │   └── ...
-│   │
-│   └── consultant/                # Advanced tooling for production
-│       ├── machine_miner.py       # Advanced batch alpha generation
-│       └── ...
-│
-├── rust/                          # High-performance Rust implementation
-│   └── ...
-│
-└── README.md                      # Project documentation
-```
+# Rust Alpha Generator
 
-## Features
+This is a Rust implementation of the alpha generator.
 
-- **AI-Powered Alpha Generation**: Leverages MoonshotAI for intelligent alpha creation and refinement
-- **Expression Mining**: Discovers potential alpha expressions
-- **Alpha Polishing**: Refines alphas for improved performance
-- **Batch Simulation**: Tests multiple alphas in parallel (consultant phase)
-- **Performance Analysis**: Evaluates alpha quality across multiple metrics
-- **Automated Submission**: Streamlines the process of submitting alphas to WorldQuant Brain
-
-## Usage Guide
-
-### Pre-Consultant Phase Tools
-
-#### Alpha Generator
-
-Creates new alpha expressions with guided AI and simulates them:
+## Installation
 
 ```bash
-python alpha_generator.py --credentials path/to/credentials.txt --moonshot-key your_moonshot_api_key
+cargo build --release
 ```
 
-#### Alpha Polisher
-
-Refines existing alpha expressions and tests them against benchmarks:
+## Usage
 
 ```bash
-python alpha_polisher.py --credentials path/to/credentials.txt --moonshot-key your_moonshot_api_key
+cargo run --release
 ```
 
-The polisher allows you to input your own expression and provide specific requirements for improvement, such as:
-- Improving Information Ratio (IR)
-- Reducing turnover
-- Enhancing market neutrality
-- Adding technical indicators
+# Python Alpha Generator
 
-#### Alpha Expression Miner
+This is a Python implementation of the alpha generator.
 
-Searches for alpha expressions based on input parameters:
+## Pre-Consultant
+
+### Installation
 
 ```bash
-python alpha_expression_miner.py --expression "your_base_expression" --credentials path/to/credentials.txt
+pip install -r requirements.txt
 ```
 
-This tool explores variations of a base expression to find promising candidates.
+### Usage
 
-#### Clean Up Logs
+```bash
+python alpha_generator.py
+```
 
-Manages log files to prevent disk space issues:
+```bash
+python alpha_expression_miner.py --expression "expression"
+```
 
 ```bash
 python clean_up_logs.py
 ```
 
-This utility helps maintain system efficiency by cleaning up old or oversized log files.
+```bash
+python successful_alpha_submitter.py
+```
 
-#### Successful Alpha Submitter
 
-Submits validated alphas to the WorldQuant platform:
+
+
+## Consultant
+
+### Installation
 
 ```bash
-python successful_alpha_submitter.py --credentials path/to/credentials.txt
+pip install -r requirements.txt
 ```
 
-This tool handles the submission process, including formatting and verification.
-
-### Consultant Phase Tools
-
-#### Machine Miner
-
-Advanced batch alpha generation and testing:
+### Usage
 
 ```bash
-python machine_miner.py --credentials path/to/credentials.txt --moonshot-key your_moonshot_api_key
+python machine_miner.py
 ```
 
-## Why MoonshotAI?
+# TODO
+- Integrate more templates
+- Integrate more datafields
+- Integrate more operators
+- Integrate more regions
+- Integrate more universes
+- Integrate more alphas
 
-This project uses MoonshotAI instead of alternatives like ChatGPT for several reasons:
-1. **Accessibility in China**: Due to the Great Firewall (GFW), many users in China have limited access to other AI services
-2. **Specialized Knowledge**: MoonshotAI has been fine-tuned for financial applications
-3. **Performance**: Offers strong capabilities for alpha expression generation and analysis
+# Incoming Features
+## GUI
+### Introduction
+- An interim solution to manage WorldQuant Alpha Generator with python GUI
+### Preview
+![GUI](./gui.jpg)
+## Agent
+### Preview
+![Agent](./agent.jpg)
+### Introduction
+- An interim solution to manage agent networks with python GUI
+## Agent site - agent-next
+### Introduction
+- Key Points
+  - A free(as of now because it is not done jajaja) user-friendly interface to create agent networks to work with the WorldQuant Alpha Generator
+  - Open source and frontend only database interactions so you can see that the website does not save your WorldQuant credentials but only your email will be used to identify you
+    - You would need to first verify with WorldQuant via API then verify with the site
+    - No WorldQuant credentials are saved on the server side but your email will be used to identify you
+  - Login required for managing agent networks
+  - Free tier available
+  - Leverage vector databases to store agent memories
+- Features
+  - Chat with agents
+  - Create agent networks
+  - Manage agent networks
+  - Delete agent networks
+  - View agent networks
+  - View agent memories
 
-For users outside China, the code can be adapted to use alternative AI services.
+### Preview
+![Agent site](./agent-site.jpg)
 
-## Core Code Walkthrough
 
-### Alpha Generation Process
 
-The alpha generation process follows this general flow:
-
-1. **Authentication**: Connect to WorldQuant Brain API
-   ```python
-   def setup_auth(self, credentials_path: str) -> None:
-       with open(credentials_path) as f:
-           credentials = json.load(f)
-       username, password = credentials
-       self.sess.auth = HTTPBasicAuth(username, password)
-       response = self.sess.post('https://api.worldquantbrain.com/authentication')
-   ```
-
-2. **Operator Fetching**: Retrieve available operators
-   ```python
-   def fetch_operators(self) -> Dict:
-       response = self.sess.get('https://api.worldquantbrain.com/operators')
-       return response.json()
-   ```
-
-3. **Expression Generation/Polishing**: Create or refine alpha expressions
-   ```python
-   # Example from alpha_polisher.py
-   def polish_expression(self, expression: str, user_requirements: str = "") -> Dict:
-       # AI request to polish the expression based on requirements
-       # Returns improved expression
-   ```
-
-4. **Simulation**: Test the alpha expression
-   ```python
-   def simulate_alpha(self, expression: str) -> Dict:
-       # Submit simulation request with appropriate parameters
-       # Wait for completion
-       # Retrieve and return results
-   ```
-
-5. **Analysis**: Evaluate performance metrics
-   ```python
-   # Performance analysis of IR, turnover, drawdown, etc.
-   ```
-
-6. **Submission**: Submit promising alphas
-   ```python
-   # Validate and submit to WorldQuant
-   ```
-
-### Simulation Configuration
-
-The simulation configuration is critical to accurate testing:
-
-```python
-data = {
-    'type': 'REGULAR',
-    'settings': {
-        'instrumentType': 'EQUITY',
-        'region': 'USA',
-        'universe': 'TOP3000',
-        'delay': 1,
-        'decay': 0,
-        'neutralization': 'INDUSTRY',
-        'truncation': 0.08,
-        'pasteurization': 'ON',
-        'unitHandling': 'VERIFY',
-        'nanHandling': 'OFF',
-        'language': 'FASTEXPR',
-        'visualization': False,
-    },
-    'regular': expression
-}
-```
-
-## Customizing the Project
-
-### Adding New Operators
-
-To add support for new operators:
-
-1. Update the operator documentation in relevant code files
-2. Add validation for the new operators
-3. Include examples in the polishing prompts
-
-### Supporting New Regions or Universes
-
-Modify the simulation settings in `simulate_alpha` method:
-
-```python
-data = {
-    'type': 'REGULAR',
-    'settings': {
-        # Modify these parameters
-        'region': 'YOUR_REGION',  # e.g., 'JAPAN', 'EUROPE'
-        'universe': 'YOUR_UNIVERSE',  # e.g., 'TOP1000', 'TOP5000'
-        # Other settings...
-    }
-}
-```
-
-### Changing AI Provider
-
-To use a different AI provider:
-1. Update the API endpoints in `analyze_alpha` and `polish_expression` methods
-2. Modify the request format to match the new provider's API
-3. Update authentication as needed
-
-## Contributing
+# Contribute
+## How to Contribute
 
 We welcome contributions from the community! Here's how you can help:
 
@@ -402,11 +177,3 @@ We welcome contributions from the community! Here's how you can help:
 
 We appreciate all contributions that help make this project better!
 
-## TODO
-- [ ] Intelligently adjust experiement parameters after promising alpha is found
-  - [ ] For example, adjust truncation, pasteurization, decay, etc.
-- [ ] For non-ai single simulate for pre-consultant phase, remove not-permitted operators
-- [ ] Add financial research pdf alpha expression generator
-- [ ] Add GUI for non-technical users
-- [ ] Add more templates
-- [ ] Add template miner
