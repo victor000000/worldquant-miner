@@ -16,12 +16,7 @@ This project is a collection of scripts that generate and submit alphas to the W
 
 
 
-
-
-
-
-
-
+Discord: https://discord.gg/K8X5xu2e
 
 
 
