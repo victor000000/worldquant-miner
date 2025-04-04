@@ -1,232 +1,191 @@
-import Link from "next/link"
-import { ArrowRight, BarChart3, Brain, Network } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+'use client';
 
-export default function HomePage() {
-  return (
-    <div className="flex flex-col min-h-screen">
-      <header className="border-b">
-        <div className="container flex h-16 items-center justify-between px-4 md:px-6">
-          <div className="flex items-center gap-2">
-            <Brain className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">AlphaMind</span>
-          </div>
-          <nav className="hidden md:flex gap-6">
-            <Link href="/" className="text-sm font-medium hover:underline underline-offset-4">
-              Home
-            </Link>
-            <Link href="/agents" className="text-sm font-medium hover:underline underline-offset-4">
-              Agents
-            </Link>
-            <Link href="/networks" className="text-sm font-medium hover:underline underline-offset-4">
-              Networks
-            </Link>
-            <Link href="/results" className="text-sm font-medium hover:underline underline-offset-4">
-              Results
-            </Link>
-          </nav>
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm">
-              Sign In
-            </Button>
-            <Button size="sm">Get Started</Button>
-          </div>
-        </div>
-      </header>
-      <main className="flex-1">
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-gradient-to-b from-background to-muted">
-          <div className="container px-4 md:px-6">
-            <div className="grid gap-6 lg:grid-cols-2 lg:gap-12 items-center">
-              <div className="flex flex-col justify-center space-y-4">
-                <div className="space-y-2">
-                  <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                    AI-Powered Alpha Mining
-                  </h1>
-                  <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    Design, run, and extract financial alpha expressions using our advanced AI agent network platform.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button size="lg" className="gap-1">
-                    Start Mining <ArrowRight className="h-4 w-4" />
-                  </Button>
-                  <Button size="lg" variant="outline">
-                    Learn More
-                  </Button>
-                </div>
-              </div>
-              <div className="mx-auto lg:mr-0 relative">
-                <div className="w-full h-[350px] bg-muted rounded-lg overflow-hidden border flex items-center justify-center">
-                  <Network className="h-24 w-24 text-primary/40" />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-background/80 via-background/40 to-background/0 rounded-lg"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <section className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">How It Works</h2>
-                <p className="max-w-[900px] text-muted-foreground md:text-xl">
-                  Our platform simplifies the process of financial alpha mining through AI agent networks.
-                </p>
-              </div>
-            </div>
-            <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3 lg:gap-12 mt-12">
-              <Card>
-                <CardHeader className="flex flex-row items-center gap-4">
-                  <div className="bg-primary/10 p-2 rounded-full">
-                    <Brain className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle>Design Agents</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Create custom AI agents with specific financial analysis capabilities and behaviors.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center gap-4">
-                  <div className="bg-primary/10 p-2 rounded-full">
-                    <Network className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle>Build Networks</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Connect agents into powerful networks that collaborate to discover alpha expressions.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center gap-4">
-                  <div className="bg-primary/10 p-2 rounded-full">
-                    <BarChart3 className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle>Extract Alpha</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Analyze results and extract valuable financial alpha expressions for your investment strategies.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </section>
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-muted">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tighter md:text-4xl">Key Features</h2>
-                <p className="max-w-[900px] text-muted-foreground md:text-xl">
-                  Our platform offers powerful tools for financial alpha mining.
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 mt-12">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Agent Designer</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Intuitive interface for creating and configuring AI agents with specific financial analysis
-                    capabilities.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Network Visualization</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Interactive visualization tools to design and monitor your AI agent networks.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Real-time Monitoring</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Track agent performance and network results in real-time with comprehensive dashboards.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Alpha Expression Library</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Store, categorize, and analyze discovered alpha expressions for future use.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </section>
-      </main>
-      <footer className="border-t">
-        <div className="container flex flex-col gap-4 py-10 md:flex-row md:gap-8 md:py-12">
-          <div className="flex flex-col gap-2 md:gap-4">
-            <div className="flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
-              <span className="text-lg font-bold">AlphaMind</span>
-            </div>
-            <p className="text-sm text-muted-foreground">AI-powered financial alpha mining platform</p>
-          </div>
-          <div className="ml-auto flex flex-col gap-2 md:flex-row md:gap-8">
-            <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-medium">Platform</h3>
-              <nav className="flex flex-col gap-2">
-                <Link href="#" className="text-sm text-muted-foreground hover:underline">
-                  Features
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:underline">
-                  Pricing
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:underline">
-                  Documentation
-                </Link>
-              </nav>
-            </div>
-            <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-medium">Company</h3>
-              <nav className="flex flex-col gap-2">
-                <Link href="#" className="text-sm text-muted-foreground hover:underline">
-                  About
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:underline">
-                  Blog
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:underline">
-                  Contact
-                </Link>
-              </nav>
-            </div>
-            <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-medium">Legal</h3>
-              <nav className="flex flex-col gap-2">
-                <Link href="#" className="text-sm text-muted-foreground hover:underline">
-                  Terms
-                </Link>
-                <Link href="#" className="text-sm text-muted-foreground hover:underline">
-                  Privacy
-                </Link>
-              </nav>
-            </div>
-          </div>
-        </div>
-      </footer>
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import dynamic from 'next/dynamic';
+import { FloatingDock } from '@/components/ui/floating-dock';
+import { 
+  IconHome, 
+  IconChartBar, 
+  IconBrain, 
+  IconSettings, 
+  IconUser,
+  IconArrowRight,
+  IconSpider
+} from '@tabler/icons-react';
+import Link from 'next/link';
+
+// Dynamically import the WorldMap component with no SSR to avoid hydration issues
+const WorldMap = dynamic(() => import('@/components/ui/world-map').then(mod => mod.WorldMap), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full aspect-[2/1] dark:bg-black bg-white rounded-lg relative font-sans">
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="animate-pulse h-8 w-8 rounded-full bg-gray-300 dark:bg-gray-700"></div>
+      </div>
     </div>
   )
+});
+
+export default function HomePage() {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Set mounted state after hydration
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Sample data for the world map
+  const mapDots = [
+    { start: { lat: 40.7128, lng: -74.0060 }, end: { lat: 51.5074, lng: -0.1278 } },
+    { start: { lat: 35.6762, lng: 139.6503 }, end: { lat: 22.3193, lng: 114.1694 } },
+    { start: { lat: 48.8566, lng: 2.3522 }, end: { lat: 55.7558, lng: 37.6173 } },
+    { start: { lat: -33.8688, lng: 151.2093 }, end: { lat: 1.3521, lng: 103.8198 } },
+  ];
+
+  // Navigation items for the floating dock
+  const navItems = [
+    { title: 'Home', icon: <IconHome className="h-5 w-5" />, href: '/' },
+    { title: 'Web Crawler', icon: <IconSpider className="h-5 w-5" />, href: '/web-miner' },
+    { title: 'Dashboard', icon: <IconChartBar className="h-5 w-5" />, href: '/dashboard' },
+    { title: 'Brain', icon: <IconBrain className="h-5 w-5" />, href: '/brain' },
+    { title: 'Settings', icon: <IconSettings className="h-5 w-5" />, href: '/settings' },
+    { title: 'Profile', icon: <IconUser className="h-5 w-5" />, href: '/profile' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-black text-white overflow-hidden">
+      {/* Background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10">
+        {/* Hero section */}
+        <section className="pt-20 pb-16 px-4 md:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              <div className="space-y-8">
+                <motion.h1 
+                  className="text-5xl md:text-7xl font-bold tracking-tight"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                    INTERACTIVE AGENT
+                  </span>
+                  <br />
+                  <span className="text-white">
+                    WORKBENCH
+                  </span>
+                </motion.h1>
+                
+                <motion.p 
+                  className="text-xl md:text-2xl text-gray-300 max-w-lg"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  Mine alpha for WorldQuant with our powerful interactive agent workbench.
+                </motion.p>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <Link href="/web-miner">
+                    <motion.button
+                      className="px-8 py-4 bg-white text-black font-bold rounded-lg flex items-center gap-2 group"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onHoverStart={() => setIsHovered(true)}
+                      onHoverEnd={() => setIsHovered(false)}
+                    >
+                      Try Web Crawler
+                      <IconArrowRight 
+                        className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" 
+                      />
+                    </motion.button>
+                  </Link>
+                </motion.div>
+              </div>
+              
+              {isMounted && (
+                <motion.div
+                  className="relative"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.7, delay: 0.3 }}
+                >
+                  <div className="backdrop-blur-md bg-white/10 p-4 rounded-2xl border border-white/20 shadow-2xl">
+                    <WorldMap dots={mapDots} lineColor="#3b82f6" />
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Features section */}
+        <section className="py-16 px-4 md:px-8">
+          <div className="max-w-7xl mx-auto">
+            <motion.h2 
+              className="text-3xl md:text-4xl font-bold text-center mb-12"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              viewport={{ once: true }}
+            >
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
+                POWERFUL FEATURES
+              </span>
+            </motion.h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  title: "Web Crawler",
+                  description: "Extract insights from research papers and generate alpha ideas using WorldQuant data."
+                },
+                {
+                  title: "Advanced Analytics",
+                  description: "Leverage powerful analytics tools to identify market opportunities and trends."
+                },
+                {
+                  title: "Real-time Data",
+                  description: "Access real-time market data and insights to make informed decisions."
+                }
+              ].map((feature, index) => (
+                <motion.div
+                  key={feature.title}
+                  className="backdrop-blur-md bg-white/10 p-6 rounded-xl border border-white/20"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                >
+                  <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
+                  <p className="text-gray-300">{feature.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* Floating Dock Navigation */}
+      {isMounted && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
+          <FloatingDock items={navItems} />
+        </div>
+      )}
+    </div>
+  );
 }
 
