@@ -15,6 +15,7 @@ import {
   IconUser,
   IconSpider
 } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
 
 export default function WebMinerPage() {
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -23,6 +24,7 @@ export default function WebMinerPage() {
   const [username, setUsername] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const router = useRouter();
 
   // Check if user is already authenticated
   useEffect(() => {
@@ -30,8 +32,11 @@ export default function WebMinerPage() {
     if (credentials) {
       setIsAuthenticated(true);
       setUsername(credentials.username);
+    } else {
+      // Redirect to login page if not authenticated
+      router.push('/login');
     }
-  }, []);
+  }, [router]);
 
   const handleLogin = async (username: string, password: string) => {
     try {
@@ -49,6 +54,7 @@ export default function WebMinerPage() {
     clearStoredCredentials();
     setIsAuthenticated(false);
     setUsername(null);
+    router.push('/login');
   };
 
   const handleFileUploaded = (file: File) => {
@@ -66,62 +72,16 @@ export default function WebMinerPage() {
     { title: 'Profile', icon: <IconUser className="h-5 w-5" />, href: '/profile' },
   ];
 
+  // Show loading state while checking authentication
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="backdrop-blur-md bg-white/10 p-6 rounded-xl border border-white/20">
-            <h2 className="text-xl font-semibold mb-4">Login to WorldQuant Brain</h2>
-            
-            {error && (
-              <div className="mb-4 p-3 bg-red-900/50 text-red-200 rounded">
-                {error}
-              </div>
-            )}
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const username = formData.get('username') as string;
-                const password = formData.get('password') as string;
-                handleLogin(username, password);
-              }}
-              className="space-y-4"
-            >
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-blue-200">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  id="username"
-                  required
-                  className="mt-1 block w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md shadow-sm text-white placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-blue-200">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  id="password"
-                  required
-                  className="mt-1 block w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md shadow-sm text-white placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Login
-              </button>
-            </form>
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+              <p className="text-blue-200">Redirecting to login page...</p>
+            </div>
           </div>
         </div>
         <FloatingDock items={dockItems} />
