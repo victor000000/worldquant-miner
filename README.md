@@ -120,6 +120,7 @@ python machine_miner.py
   - Delete agent networks
   - View agent networks
   - View agent memories
+  - Alpha Polisher - Polish existing alphas or generate new ideas using AI
 
 ### Preview
 ![Agent site](./agent-site.jpg)

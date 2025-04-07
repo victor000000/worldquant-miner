@@ -30,11 +30,12 @@ interface DataField {
 
 interface DataFieldSelectorProps {
   onFieldsSelected: (fields: string[]) => void;
+  selectedFields?: string[];
 }
 
-export default function DataFieldSelector({ onFieldsSelected }: DataFieldSelectorProps) {
+export default function DataFieldSelector({ onFieldsSelected, selectedFields = [] }: DataFieldSelectorProps) {
   const [fields, setFields] = useState<DataField[]>([]);
-  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [internalSelectedFields, setInternalSelectedFields] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +45,10 @@ export default function DataFieldSelector({ onFieldsSelected }: DataFieldSelecto
   const [totalCount, setTotalCount] = useState(0);
   const [offset, setOffset] = useState('0');
   const [limit, setLimit] = useState('20');
+
+  useEffect(() => {
+    setInternalSelectedFields(selectedFields);
+  }, [selectedFields]);
 
   useEffect(() => {
     const fetchFields = async () => {
@@ -124,12 +129,12 @@ export default function DataFieldSelector({ onFieldsSelected }: DataFieldSelecto
     fetchFields();
   }, [dataset, offset, limit]);
 
-  const handleFieldToggle = (field: string) => {
-    const newSelectedFields = selectedFields.includes(field)
-      ? selectedFields.filter(f => f !== field)
-      : [...selectedFields, field];
+  const handleFieldToggle = (fieldId: string) => {
+    const newSelectedFields = internalSelectedFields.includes(fieldId)
+      ? internalSelectedFields.filter(id => id !== fieldId)
+      : [...internalSelectedFields, fieldId];
     
-    setSelectedFields(newSelectedFields);
+    setInternalSelectedFields(newSelectedFields);
     onFieldsSelected(newSelectedFields);
   };
 
@@ -252,7 +257,7 @@ export default function DataFieldSelector({ onFieldsSelected }: DataFieldSelecto
               <div className="flex items-start">
                 <input
                   type="checkbox"
-                  checked={selectedFields.includes(field.id)}
+                  checked={internalSelectedFields.includes(field.id)}
                   onChange={() => handleFieldToggle(field.id)}
                   className="mt-1 h-4 w-4 text-blue-400 rounded border-white/20 bg-white/10"
                 />
@@ -287,10 +292,10 @@ export default function DataFieldSelector({ onFieldsSelected }: DataFieldSelecto
         </div>
       )}
       
-      {selectedFields.length > 0 && (
+      {internalSelectedFields.length > 0 && (
         <div className="mt-4 p-3 bg-blue-900/30 rounded-lg">
           <p className="text-sm text-blue-200">
-            {selectedFields.length} field{selectedFields.length !== 1 ? 's' : ''} selected
+            {internalSelectedFields.length} field{internalSelectedFields.length !== 1 ? 's' : ''} selected
           </p>
         </div>
       )}

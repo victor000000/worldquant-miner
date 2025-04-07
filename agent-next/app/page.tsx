@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import dynamic from 'next/dynamic';
 import { FloatingDock } from '@/components/ui/floating-dock';
+import { sharedNavItems } from '@/components/ui/shared-navigation';
 import { 
   IconHome, 
   IconChartBar, 
@@ -42,16 +43,6 @@ export default function HomePage() {
     { start: { lat: 35.6762, lng: 139.6503 }, end: { lat: 22.3193, lng: 114.1694 } },
     { start: { lat: 48.8566, lng: 2.3522 }, end: { lat: 55.7558, lng: 37.6173 } },
     { start: { lat: -33.8688, lng: 151.2093 }, end: { lat: 1.3521, lng: 103.8198 } },
-  ];
-
-  // Navigation items for the floating dock
-  const navItems = [
-    { title: 'Home', icon: <IconHome className="h-5 w-5" />, href: '/' },
-    { title: 'Web Crawler', icon: <IconSpider className="h-5 w-5" />, href: '/web-miner' },
-    { title: 'Dashboard', icon: <IconChartBar className="h-5 w-5" />, href: '/dashboard' },
-    { title: 'Brain', icon: <IconBrain className="h-5 w-5" />, href: '/brain' },
-    { title: 'Settings', icon: <IconSettings className="h-5 w-5" />, href: '/settings' },
-    { title: 'Profile', icon: <IconUser className="h-5 w-5" />, href: '/profile' },
   ];
 
   return (
@@ -179,12 +170,6 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* Floating Dock Navigation */}
-      {isMounted && (
-        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
-          <FloatingDock items={navItems} />
-        </div>
-      )}
     </div>
   );
 }
