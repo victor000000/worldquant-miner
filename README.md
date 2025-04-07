@@ -172,3 +172,166 @@ We welcome contributions from the community! Here's how you can help:
 
 We appreciate all contributions that help make this project better!
 
+# Dify Components Integration
+
+This project integrates components from Dify (agent-dify-api and agent-dify-web) for enhanced alpha mining capabilities. These components are used under the Apache License 2.0.
+
+## Legal Notice
+
+The Dify components (agent-dify-api and agent-dify-web) are licensed under the Apache License 2.0. This means:
+
+1. You may use, reproduce, and distribute the Dify components
+2. You may modify and create derivative works
+3. You must include the original copyright notice
+4. You must state significant changes made to the original software
+5. You must include a copy of the Apache License 2.0
+
+For the complete terms and conditions, please refer to the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+
+## Usage of Dify Components
+
+The Dify components are integrated into this project to enhance alpha mining capabilities:
+
+1. **agent-dify-api**: Provides API endpoints for alpha generation and mining
+2. **agent-dify-web**: Offers a web interface for alpha mining operations
+
+### Integration with Alpha Mining
+
+The Dify components are used to:
+- Generate and validate alpha expressions
+- Process and analyze market data
+- Provide a user-friendly interface for alpha mining
+- Enable automated alpha generation and submission
+
+### Attribution
+
+This project uses components from Dify, which are licensed under the Apache License 2.0. The original copyright notices and license information are preserved in the respective component directories.
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+
+## Tutorial: Using Dify Components for Alpha Mining
+
+### Prerequisites
+1. Docker and Docker Compose installed
+2. Python 3.8 or higher
+3. Node.js 16 or higher (for web interface)
+
+### Setting Up Dify Components
+
+1. **Start the Dify Services**
+```bash
+# Start the Dify API and Web services
+docker-compose -f docker-compose.middleware.yaml up -d
+```
+
+2. **Verify Services**
+```bash
+# Check if services are running
+docker ps
+```
+
+### Using the Dify Web Interface
+
+1. **Access the Web Interface**
+   - Open your browser and navigate to `http://localhost:3000`
+   - Log in with your credentials
+
+2. **Creating Alpha Mining Tasks**
+   - Click on "New Task" in the web interface
+   - Select "Alpha Mining" as the task type
+   - Configure your mining parameters:
+     - Data fields to use
+     - Time period
+     - Universe selection
+     - Mining strategy
+
+3. **Monitoring Mining Progress**
+   - View real-time mining progress in the dashboard
+   - Check generated alphas in the "Results" section
+   - Export successful alphas for submission
+
+### Using the Dify API
+
+1. **API Authentication**
+```python
+import requests
+
+API_URL = "http://localhost:8000"
+headers = {
+    "Authorization": "Bearer your_api_key"
+}
+```
+
+2. **Creating Mining Tasks**
+```python
+# Create a new mining task
+response = requests.post(
+    f"{API_URL}/api/v1/mining/tasks",
+    headers=headers,
+    json={
+        "name": "My Mining Task",
+        "data_fields": ["close", "volume", "high", "low"],
+        "time_period": "1Y",
+        "universe": "US",
+        "strategy": "correlation"
+    }
+)
+```
+
+3. **Checking Task Status**
+```python
+# Get task status
+task_id = response.json()["task_id"]
+status = requests.get(
+    f"{API_URL}/api/v1/mining/tasks/{task_id}",
+    headers=headers
+)
+```
+
+4. **Retrieving Results**
+```python
+# Get mining results
+results = requests.get(
+    f"{API_URL}/api/v1/mining/tasks/{task_id}/results",
+    headers=headers
+)
+```
+
+### Best Practices
+
+1. **Resource Management**
+   - Monitor system resources during mining
+   - Adjust mining parameters based on available resources
+   - Use appropriate timeouts for long-running tasks
+
+2. **Error Handling**
+   - Implement proper error handling in your API calls
+   - Check task status regularly
+   - Save intermediate results
+
+3. **Performance Optimization**
+   - Use appropriate batch sizes
+   - Implement caching where possible
+   - Monitor and adjust mining parameters
+
+### Troubleshooting
+
+1. **Service Issues**
+   - Check Docker container logs: `docker logs <container_id>`
+   - Verify service health: `docker-compose ps`
+   - Restart services if needed: `docker-compose restart`
+
+2. **API Issues**
+   - Verify API endpoint availability
+   - Check authentication tokens
+   - Monitor API rate limits
+
+3. **Mining Issues**
+   - Verify data field availability
+   - Check universe configuration
+   - Monitor memory usage
+
+For more detailed information about specific features and configurations, refer to the [Dify Documentation](https://docs.dify.ai).
+
