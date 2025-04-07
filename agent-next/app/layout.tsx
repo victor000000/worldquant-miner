@@ -3,6 +3,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { FloatingDock } from '@/components/ui/floating-dock'
 import { sharedNavItems } from '@/components/ui/shared-navigation'
+import { Analytics } from "@vercel/analytics/react"
 
 export const metadata: Metadata = {
   title: 'WorldQuant Brain',
@@ -27,6 +28,7 @@ export default function RootLayout({
           {children}
           <FloatingDock items={sharedNavItems} />
         </ThemeProvider>
+        <Analytics mode="production" />
       </body>
     </html>
   )
