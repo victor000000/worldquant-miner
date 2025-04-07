@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { FloatingDock } from '@/components/ui/floating-dock';
+import { sharedNavItems } from '@/components/ui/shared-navigation';
 import { 
   IconHome, 
   IconChartBar, 
@@ -38,16 +39,6 @@ export default function DashboardPage() {
     clearStoredCredentials();
     router.push('/login');
   };
-
-  // Navigation items for the floating dock
-  const navItems = [
-    { title: 'Home', icon: <IconHome className="h-5 w-5" />, href: '/' },
-    { title: 'Dashboard', icon: <IconChartBar className="h-5 w-5" />, href: '/dashboard' },
-    { title: 'Web Miner', icon: <IconWorld className="h-5 w-5" />, href: '/web-miner' },
-    { title: 'Brain', icon: <IconBrain className="h-5 w-5" />, href: '/brain' },
-    { title: 'Settings', icon: <IconSettings className="h-5 w-5" />, href: '/settings' },
-    { title: 'Profile', icon: <IconUser className="h-5 w-5" />, href: '/profile' },
-  ];
 
   // Sample data for the dashboard
   const stats = [
@@ -252,14 +243,10 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      {/* Floating Dock Navigation */}
-      <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
-        <FloatingDock 
-          items={navItems} 
-          desktopClassName="backdrop-blur-md bg-white/10 border border-white/20"
-          mobileClassName="fixed bottom-8 right-8 backdrop-blur-md bg-white/10 border border-white/20"
-        />
-      </div>
+      {/* Floating Navigation Dock */}
+      {isMounted && (
+        <FloatingDock items={sharedNavItems} />
+      )}
     </div>
   );
 } 

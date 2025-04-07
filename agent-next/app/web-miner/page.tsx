@@ -7,15 +7,10 @@ import OperatorSelector from '../../components/OperatorSelector';
 import AlphaGenerator from '../../components/AlphaGenerator';
 import { authenticateWorldQuant, getStoredCredentials, clearStoredCredentials } from '../../lib/auth';
 import { FloatingDock } from '../../components/ui/floating-dock';
-import { 
-  IconHome, 
-  IconChartBar, 
-  IconBrain, 
-  IconSettings, 
-  IconUser,
-  IconSpider
-} from '@tabler/icons-react';
+import { sharedNavItems } from '../../components/ui/shared-navigation';
 import { useRouter } from 'next/navigation';
+import { Button } from '../../components/ui/button';
+import { Check, X } from 'lucide-react';
 
 export default function WebMinerPage() {
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
@@ -24,6 +19,8 @@ export default function WebMinerPage() {
   const [username, setUsername] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [allFields, setAllFields] = useState<string[]>([]);
+  const [allOperators, setAllOperators] = useState<string[]>([]);
   const router = useRouter();
 
   // Check if user is already authenticated
@@ -37,6 +34,66 @@ export default function WebMinerPage() {
       router.push('/login');
     }
   }, [router]);
+
+  // Fetch all available fields and operators on component mount
+  useEffect(() => {
+    const fetchAllFieldsAndOperators = async () => {
+      try {
+        // Get the JWT token
+        const jwtToken = getStoredCredentials()?.jwtToken;
+        
+        if (!jwtToken) {
+          return;
+        }
+        
+        // Fetch operators
+        const operatorsResponse = await fetch('/api/operators', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            jwtToken,
+          }),
+        });
+        
+        if (operatorsResponse.ok) {
+          const operatorsData = await operatorsResponse.json();
+          const operatorNames = operatorsData.map((op: any) => op.name);
+          setAllOperators(operatorNames);
+        }
+        
+        // Fetch data fields - get all fields by using a large limit
+        const fieldsResponse = await fetch('/api/data-fields', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            jwtToken,
+            dataset: 'fundamental6',
+            limit: '100', // Fetch a larger number of fields
+            instrumentType: 'EQUITY',
+            region: 'USA',
+            universe: 'TOP3000',
+            delay: '1',
+          }),
+        });
+        
+        if (fieldsResponse.ok) {
+          const fieldsData = await fieldsResponse.json();
+          const fieldIds = fieldsData.results.map((field: any) => field.id);
+          setAllFields(fieldIds);
+        }
+      } catch (error) {
+        console.error('Error fetching fields and operators:', error);
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchAllFieldsAndOperators();
+    }
+  }, [isAuthenticated]);
 
   const handleLogin = async (username: string, password: string) => {
     try {
@@ -62,15 +119,25 @@ export default function WebMinerPage() {
     console.log('File uploaded:', file.name);
   };
 
-  // Define dock items for navigation
-  const dockItems = [
-    { title: 'Home', icon: <IconHome className="h-5 w-5" />, href: '/' },
-    { title: 'Web Crawler', icon: <IconSpider className="h-5 w-5" />, href: '/web-miner' },
-    { title: 'Dashboard', icon: <IconChartBar className="h-5 w-5" />, href: '/dashboard' },
-    { title: 'Brain', icon: <IconBrain className="h-5 w-5" />, href: '/brain' },
-    { title: 'Settings', icon: <IconSettings className="h-5 w-5" />, href: '/settings' },
-    { title: 'Profile', icon: <IconUser className="h-5 w-5" />, href: '/profile' },
-  ];
+  // Handle select all fields
+  const handleSelectAllFields = () => {
+    setSelectedFields(allFields);
+  };
+
+  // Handle deselect all fields
+  const handleDeselectAllFields = () => {
+    setSelectedFields([]);
+  };
+
+  // Handle select all operators
+  const handleSelectAllOperators = () => {
+    setSelectedOperators(allOperators);
+  };
+
+  // Handle deselect all operators
+  const handleDeselectAllOperators = () => {
+    setSelectedOperators([]);
+  };
 
   // Show loading state while checking authentication
   if (!isAuthenticated) {
@@ -84,7 +151,7 @@ export default function WebMinerPage() {
             </div>
           </div>
         </div>
-        <FloatingDock items={dockItems} />
+        <FloatingDock items={sharedNavItems} />
       </div>
     );
   }
@@ -127,8 +194,62 @@ export default function WebMinerPage() {
           {/* Left Column */}
           <div className="space-y-8">
             <FileUploader onFileUploaded={handleFileUploaded} />
-            <DataFieldSelector onFieldsSelected={setSelectedFields} />
-            <OperatorSelector onOperatorsSelected={setSelectedOperators} />
+            
+            <div className="backdrop-blur-md bg-white/10 p-6 rounded-xl border border-white/20">
+              <h2 className="text-xl font-semibold mb-4">Data Fields</h2>
+              <div className="mb-4 flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSelectAllFields}
+                  className="flex items-center"
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  Select All
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleDeselectAllFields}
+                  className="flex items-center"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Deselect All
+                </Button>
+              </div>
+              <DataFieldSelector 
+                onFieldsSelected={setSelectedFields} 
+                selectedFields={selectedFields}
+              />
+            </div>
+            
+            <div className="backdrop-blur-md bg-white/10 p-6 rounded-xl border border-white/20">
+              <h2 className="text-xl font-semibold mb-4">Operators</h2>
+              <div className="mb-4 flex space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSelectAllOperators}
+                  className="flex items-center"
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  Select All
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleDeselectAllOperators}
+                  className="flex items-center"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Deselect All
+                </Button>
+              </div>
+              <OperatorSelector 
+                onOperatorsSelected={setSelectedOperators} 
+                selectedOperators={selectedOperators}
+              />
+            </div>
           </div>
           
           {/* Right Column */}
@@ -141,8 +262,8 @@ export default function WebMinerPage() {
         </div>
       </div>
       
-      {/* Floating Dock */}
-      <FloatingDock items={dockItems} />
+      {/* Floating Navigation Dock */}
+      <FloatingDock items={sharedNavItems} />
     </div>
   );
 } 

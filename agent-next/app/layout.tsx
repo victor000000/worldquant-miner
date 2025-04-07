@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
+import { FloatingDock } from '@/components/ui/floating-dock'
+import { sharedNavItems } from '@/components/ui/shared-navigation'
 
 export const metadata: Metadata = {
   title: 'WorldQuant Brain',
@@ -23,6 +25,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <FloatingDock items={sharedNavItems} />
         </ThemeProvider>
       </body>
     </html>
