@@ -51,12 +51,14 @@ export function getStoredCredentials(): WorldQuantCredentials | null {
   }
   
   const storedCredentials = localStorage.getItem('worldquant_credentials');
+  const storedJWT = localStorage.getItem('worldquant_jwt');
   if (!storedCredentials) {
     return null;
   }
   
   try {
-    return JSON.parse(storedCredentials) as WorldQuantCredentials;
+    const credentials = JSON.parse(storedCredentials) as WorldQuantCredentials;
+    return { ...credentials, jwtToken: storedJWT || undefined };
   } catch (error) {
     console.error('Error parsing stored credentials:', error);
     return null;

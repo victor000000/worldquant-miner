@@ -41,6 +41,7 @@ export default function WebMinerPage() {
       try {
         // Get the JWT token
         const jwtToken = getStoredCredentials()?.jwtToken;
+        console.log('JWT Token:', jwtToken);
         
         if (!jwtToken) {
           return;
@@ -72,7 +73,7 @@ export default function WebMinerPage() {
           body: JSON.stringify({
             jwtToken,
             dataset: 'fundamental6',
-            limit: '100', // Fetch a larger number of fields
+            limit: '20', // Fetch a larger number of fields
             instrumentType: 'EQUITY',
             region: 'USA',
             universe: 'TOP3000',
@@ -80,9 +81,12 @@ export default function WebMinerPage() {
           }),
         });
         
+        console.log('Fields Response:', fieldsResponse);
+
         if (fieldsResponse.ok) {
           const fieldsData = await fieldsResponse.json();
           const fieldIds = fieldsData.results.map((field: any) => field.id);
+          console.log('Field IDs:', fieldIds);
           setAllFields(fieldIds);
         }
       } catch (error) {
@@ -90,10 +94,8 @@ export default function WebMinerPage() {
       }
     };
 
-    if (isAuthenticated) {
-      fetchAllFieldsAndOperators();
-    }
-  }, [isAuthenticated]);
+    fetchAllFieldsAndOperators();
+  }, []);
 
   const handleLogin = async (username: string, password: string) => {
     try {
@@ -116,7 +118,6 @@ export default function WebMinerPage() {
 
   const handleFileUploaded = (file: File) => {
     setUploadedFile(file);
-    console.log('File uploaded:', file.name);
   };
 
   // Handle select all fields
@@ -257,6 +258,7 @@ export default function WebMinerPage() {
             <AlphaGenerator
               selectedFields={selectedFields}
               selectedOperators={selectedOperators}
+              pdfFile={uploadedFile}
             />
           </div>
         </div>
