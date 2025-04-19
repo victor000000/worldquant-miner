@@ -1,19 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { getStoredJWT } from '../lib/auth';
 
 interface AlphaGeneratorProps {
   selectedFields: string[];
   selectedOperators: string[];
+  pdfFile: File | null;
 }
 
-export default function AlphaGenerator({ selectedFields, selectedOperators }: AlphaGeneratorProps) {
-  const [alphaIdeas, setAlphaIdeas] = useState<string[]>([]);
+export default function AlphaGenerator({ selectedFields, selectedOperators, pdfFile }: AlphaGeneratorProps) {
+  const [alphaIdeas, setAlphaIdeas] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const generateAlpha = async () => {
+    if (!pdfFile) {
+      setError('Please upload a research paper first');
+      return;
+    }
+
     if (selectedFields.length === 0 || selectedOperators.length === 0) {
       setError('Please select at least one field and one operator');
       return;
@@ -23,25 +28,14 @@ export default function AlphaGenerator({ selectedFields, selectedOperators }: Al
     setError(null);
     
     try {
-      // Get the JWT token
-      const jwtToken = getStoredJWT();
-      
-      if (!jwtToken) {
-        setError('Authentication required. Please log in again.');
-        setIsLoading(false);
-        return;
-      }
+      const formData = new FormData();
+      formData.append('pdf', pdfFile);
+      formData.append('fields', JSON.stringify(selectedFields));
+      formData.append('operators', JSON.stringify(selectedOperators));
       
       const response = await fetch('/api/generate-alpha', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          jwtToken,
-          fields: selectedFields,
-          operators: selectedOperators,
-        }),
+        body: formData,
       });
       
       if (!response.ok) {
@@ -95,7 +89,7 @@ export default function AlphaGenerator({ selectedFields, selectedOperators }: Al
         <div className="mb-6">
           <button
             onClick={generateAlpha}
-            disabled={isLoading || selectedFields.length === 0 || selectedOperators.length === 0}
+            disabled={isLoading || !pdfFile || selectedFields.length === 0 || selectedOperators.length === 0}
             className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
@@ -123,8 +117,41 @@ export default function AlphaGenerator({ selectedFields, selectedOperators }: Al
             <h3 className="text-lg font-medium">Generated Alpha Ideas</h3>
             <div className="space-y-3">
               {alphaIdeas.map((idea, index) => (
-                <div key={index} className="p-4 bg-white/5 rounded-lg">
-                  <p className="text-blue-200">{idea}</p>
+                <div 
+                  key={index} 
+                  className="backdrop-blur-sm bg-white/5 p-6 rounded-xl border border-white/10 hover:border-white/20 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10"
+                >
+                  <h3 className="text-xl font-semibold text-blue-200 mb-3">{idea.title}</h3>
+                  <p className="text-blue-100/80 mb-4">{idea.description}</p>
+                  
+                  <div className="space-y-4">
+                    <div className="backdrop-blur-sm bg-white/5 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-300 mb-2">Implementation</h4>
+                      <p className="text-blue-100/80">{idea.implementation}</p>
+                    </div>
+                    
+                    <div className="backdrop-blur-sm bg-white/5 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-300 mb-2">Rationale</h4>
+                      <p className="text-blue-100/80">{idea.rationale}</p>
+                    </div>
+                    
+                    <div className="backdrop-blur-sm bg-white/5 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-300 mb-2">Risks</h4>
+                      <p className="text-blue-100/80">{idea.risks}</p>
+                    </div>
+                    
+                    <div className="backdrop-blur-sm bg-white/5 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-300 mb-2">Alpha Expression</h4>
+                      <pre className="bg-black/20 p-4 rounded-lg overflow-x-auto text-sm font-mono text-blue-100/90 border border-white/10">
+                        {idea.alpha_expression.split(';').map((line: string, i: number, arr: string[]) => (
+                          <span key={i}>
+                            {line.trim()}
+                            {i < arr.length - 1 ? ';\n' : ''}
+                          </span>
+                        ))}
+                      </pre>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

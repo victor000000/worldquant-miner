@@ -83,7 +83,7 @@ export default function PineconeDashboard() {
       console.log('Operators data from API:', operatorsData);
       console.log('Data fields data from API:', dataFieldsData);
       
-      if (indexesData && indexesData.length > 0) {
+      if (indexesData && Array.isArray(indexesData)) {
         console.log('Setting indexes data:', indexesData);
         setIndexes(indexesData);
       } else {
@@ -91,8 +91,17 @@ export default function PineconeDashboard() {
         setIndexes([]);
       }
       
-      setOperators(operatorsData);
-      setDataFields(dataFieldsData);
+      if (operatorsData && Array.isArray(operatorsData)) {
+        setOperators(operatorsData);
+      } else {
+        setOperators([]);
+      }
+      
+      if (dataFieldsData && Array.isArray(dataFieldsData)) {
+        setDataFields(dataFieldsData);
+      } else {
+        setDataFields([]);
+      }
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to fetch data. Please try again.');
