@@ -5,6 +5,7 @@ import { getStoredJWT } from '../lib/auth';
 
 interface DataField {
   id: string;
+  name: string;
   description: string;
   dataset: {
     id: string;
@@ -14,7 +15,7 @@ interface DataField {
     id: string;
     name: string;
   };
-  subcategory: {
+  subcategory?: {
     id: string;
     name: string;
   };
@@ -31,9 +32,18 @@ interface DataField {
 interface DataFieldSelectorProps {
   onFieldsSelected: (fields: string[]) => void;
   selectedFields?: string[];
+  onDatasetChange?: (dataset: string) => void;
+  onCategoryChange?: (category: string) => void;
+  onPageChange?: (page: string) => void;
 }
 
-export default function DataFieldSelector({ onFieldsSelected, selectedFields = [] }: DataFieldSelectorProps) {
+export default function DataFieldSelector({ 
+  onFieldsSelected, 
+  selectedFields = [],
+  onDatasetChange,
+  onCategoryChange,
+  onPageChange
+}: DataFieldSelectorProps) {
   const [fields, setFields] = useState<DataField[]>([]);
   const [internalSelectedFields, setInternalSelectedFields] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -129,13 +139,16 @@ export default function DataFieldSelector({ onFieldsSelected, selectedFields = [
     fetchFields();
   }, [dataset, offset, limit]);
 
-  const handleFieldToggle = (fieldId: string) => {
-    const newSelectedFields = internalSelectedFields.includes(fieldId)
-      ? internalSelectedFields.filter(id => id !== fieldId)
-      : [...internalSelectedFields, fieldId];
+  const handleFieldToggle = (field: DataField) => {
+    const newSelectedFields = internalSelectedFields.includes(field.id)
+      ? internalSelectedFields.filter(id => id !== field.id)
+      : [...internalSelectedFields, field.id];
     
     setInternalSelectedFields(newSelectedFields);
-    onFieldsSelected(newSelectedFields);
+    
+    if (onFieldsSelected) {
+      onFieldsSelected(newSelectedFields);
+    }
   };
 
   // Get unique categories and datasets
@@ -162,6 +175,25 @@ export default function DataFieldSelector({ onFieldsSelected, selectedFields = [
     label: `Page ${i + 1} of ${totalPages}`
   }));
 
+  // Update the select handlers to notify parent
+  const handleDatasetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newDataset = e.target.value;
+    setDataset(newDataset);
+    onDatasetChange?.(newDataset);
+  };
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newCategory = e.target.value;
+    setSelectedCategory(newCategory);
+    onCategoryChange?.(newCategory);
+  };
+
+  const handlePageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newPage = e.target.value;
+    setOffset(newPage);
+    onPageChange?.(newPage);
+  };
+
   return (
     <div className="backdrop-blur-md bg-white/10 p-6 rounded-xl border border-white/20">
       <h2 className="text-xl font-semibold mb-4">Select Data Fields</h2>
@@ -184,15 +216,15 @@ export default function DataFieldSelector({ onFieldsSelected, selectedFields = [
           <select
             id="dataset"
             value={dataset}
-            onChange={(e) => setDataset(e.target.value)}
+            onChange={handleDatasetChange}
             className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md shadow-sm text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="fundamental6">Fundamental 6</option>
-            <option value="fundamental2">Fundamental 2</option>
-            <option value="analyst4">Analyst 4</option>
-            <option value="model16">Model 16</option>
-            <option value="model51">Model 51</option>
-            <option value="news12">News 12</option>
+            <option value="fundamental6" className="text-black">Fundamental 6</option>
+            <option value="fundamental2" className="text-black">Fundamental 2</option>
+            <option value="analyst4" className="text-black">Analyst 4</option>
+            <option value="model16" className="text-black">Model 16</option>
+            <option value="model51" className="text-black">Model 51</option>
+            <option value="news12" className="text-black">News 12</option>
           </select>
         </div>
         
@@ -203,11 +235,14 @@ export default function DataFieldSelector({ onFieldsSelected, selectedFields = [
           <select
             id="category"
             value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              onCategoryChange?.(e.target.value);
+            }}
             className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md shadow-sm text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           >
             {categories.map(category => (
-              <option key={category} value={category}>
+              <option key={category} value={category} className="text-black">
                 {category.charAt(0).toUpperCase() + category.slice(1)}
               </option>
             ))}
@@ -221,11 +256,11 @@ export default function DataFieldSelector({ onFieldsSelected, selectedFields = [
           <select
             id="page"
             value={offset}
-            onChange={(e) => setOffset(e.target.value)}
+            onChange={handlePageChange}
             className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md shadow-sm text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           >
             {pageOptions.map(option => (
-              <option key={option.value} value={option.value}>
+              <option key={option.value} value={option.value} className="text-black">
                 {option.label}
               </option>
             ))}
@@ -252,13 +287,17 @@ export default function DataFieldSelector({ onFieldsSelected, selectedFields = [
           {filteredFields.map((field) => (
             <div
               key={field.id}
-              className="p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+              className={`p-3 rounded-lg transition-colors ${
+                internalSelectedFields.includes(field.id)
+                  ? 'bg-blue-900/30 border border-blue-500'
+                  : 'bg-white/5 hover:bg-white/10'
+              }`}
             >
               <div className="flex items-start">
                 <input
                   type="checkbox"
                   checked={internalSelectedFields.includes(field.id)}
-                  onChange={() => handleFieldToggle(field.id)}
+                  onChange={() => handleFieldToggle(field)}
                   className="mt-1 h-4 w-4 text-blue-400 rounded border-white/20 bg-white/10"
                 />
                 <div className="ml-3 flex-1">
