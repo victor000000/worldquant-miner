@@ -12,15 +12,24 @@ import { useRouter } from 'next/navigation';
 import { Button } from '../../components/ui/button';
 import { Check, X } from 'lucide-react';
 
+interface Field {
+  id: string;
+  description: string;
+  type: string;
+}
+
 export default function WebMinerPage() {
-  const [selectedFields, setSelectedFields] = useState<string[]>([]);
+  const [selectedFields, setSelectedFields] = useState<Field[]>([]);
   const [selectedOperators, setSelectedOperators] = useState<string[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [allFields, setAllFields] = useState<string[]>([]);
+  const [allFields, setAllFields] = useState<Field[]>([]);
   const [allOperators, setAllOperators] = useState<string[]>([]);
+  const [dataset, setDataset] = useState('fundamental6');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [offset, setOffset] = useState('0');
   const router = useRouter();
 
   // Check if user is already authenticated
@@ -64,7 +73,7 @@ export default function WebMinerPage() {
           setAllOperators(operatorNames);
         }
         
-        // Fetch data fields - get all fields by using a large limit
+        // Fetch data fields with current dataset, category, and offset
         const fieldsResponse = await fetch('/api/data-fields', {
           method: 'POST',
           headers: {
@@ -72,12 +81,14 @@ export default function WebMinerPage() {
           },
           body: JSON.stringify({
             jwtToken,
-            dataset: 'fundamental6',
-            limit: '20', // Fetch a larger number of fields
+            dataset,
+            limit: '20',
             instrumentType: 'EQUITY',
             region: 'USA',
             universe: 'TOP3000',
             delay: '1',
+            offset,
+            category: selectedCategory !== 'all' ? selectedCategory : undefined,
           }),
         });
         
@@ -85,9 +96,13 @@ export default function WebMinerPage() {
 
         if (fieldsResponse.ok) {
           const fieldsData = await fieldsResponse.json();
-          const fieldIds = fieldsData.results.map((field: any) => field.id);
-          console.log('Field IDs:', fieldIds);
-          setAllFields(fieldIds);
+          // It should form a list of objects with the following properties: id, description, type.
+          const fieldsList = fieldsData.results.map((field: any) => ({
+            id: field.id,
+            description: field.description,
+            type: field.type,
+          }));
+          setAllFields(fieldsList);
         }
       } catch (error) {
         console.error('Error fetching fields and operators:', error);
@@ -95,7 +110,7 @@ export default function WebMinerPage() {
     };
 
     fetchAllFieldsAndOperators();
-  }, []);
+  }, [dataset, selectedCategory, offset]);
 
   const handleLogin = async (username: string, password: string) => {
     try {
@@ -120,6 +135,19 @@ export default function WebMinerPage() {
     setUploadedFile(file);
   };
 
+  const handleFieldsSelected = (fieldIds: string[]) => {
+    // Convert field IDs to Field objects by looking them up in allFields
+    const newFields = fieldIds.map(id => {
+      const field = allFields.find(f => f.id === id);
+      if (!field) {
+        console.error(`Field with ID ${id} not found in allFields`);
+        return { id, description: '', type: '' };
+      }
+      return field;
+    });
+    setSelectedFields(newFields);
+  };
+
   // Handle select all fields
   const handleSelectAllFields = () => {
     setSelectedFields(allFields);
@@ -138,6 +166,23 @@ export default function WebMinerPage() {
   // Handle deselect all operators
   const handleDeselectAllOperators = () => {
     setSelectedOperators([]);
+  };
+
+  // Add handlers for dataset, category, and page changes
+  const handleDatasetChange = (newDataset: string) => {
+    setDataset(newDataset);
+    // Reset offset when dataset changes
+    setOffset('0');
+  };
+
+  const handleCategoryChange = (newCategory: string) => {
+    setSelectedCategory(newCategory);
+    // Reset offset when category changes
+    setOffset('0');
+  };
+
+  const handlePageChange = (newPage: string) => {
+    setOffset(newPage);
   };
 
   // Show loading state while checking authentication
@@ -219,8 +264,11 @@ export default function WebMinerPage() {
                 </Button>
               </div>
               <DataFieldSelector 
-                onFieldsSelected={setSelectedFields} 
-                selectedFields={selectedFields}
+                onFieldsSelected={handleFieldsSelected} 
+                selectedFields={selectedFields.map(f => f.id)}
+                onDatasetChange={handleDatasetChange}
+                onCategoryChange={handleCategoryChange}
+                onPageChange={handlePageChange}
               />
             </div>
             

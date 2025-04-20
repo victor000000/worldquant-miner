@@ -1,9 +1,35 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
+import { Play } from 'lucide-react';
+import { openIndexedDB } from '@/lib/indexedDB';
+import { Button } from '@/components/ui/button';
+import { addSimulation } from '../lib/indexedDB';
+
+interface Simulation {
+  id: string;
+  alpha_expression: string;
+  status: 'queued' | 'simulating' | 'completed' | 'failed';
+  progress: number;
+  result?: {
+    sharpe_ratio: number;
+    sortino_ratio: number;
+    max_drawdown: number;
+    annualized_return: number;
+  };
+  created_at: number;
+  updated_at: number;
+}
+
+interface Field {
+  id: string;
+  description: string;
+  type: string;
+}
 
 interface AlphaGeneratorProps {
-  selectedFields: string[];
+  selectedFields: Field[];
   selectedOperators: string[];
   pdfFile: File | null;
 }
@@ -12,6 +38,9 @@ export default function AlphaGenerator({ selectedFields, selectedOperators, pdfF
   const [alphaIdeas, setAlphaIdeas] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+
+  console.log(selectedFields);
 
   const generateAlpha = async () => {
     if (!pdfFile) {
@@ -51,6 +80,29 @@ export default function AlphaGenerator({ selectedFields, selectedOperators, pdfF
     }
   };
 
+  const handleQueueSimulation = async (alpha: string) => {
+    try {
+      const db = await openIndexedDB();
+      const tx = db.transaction('simulations', 'readwrite');
+      const store = tx.objectStore('simulations');
+      
+      const simulation: Simulation = {
+        id: Date.now().toString(),
+        alpha_expression: alpha,
+        status: 'queued',
+        progress: 0,
+        created_at: Date.now(),
+        updated_at: Date.now()
+      };
+      
+      await store.add(simulation);
+      toast.success('Alpha queued for simulation');
+    } catch (error) {
+      console.error('Error queueing simulation:', error);
+      toast.error('Failed to queue simulation');
+    }
+  };
+
   return (
     <div className="backdrop-blur-md bg-white/10 p-6 rounded-xl border border-white/20">
       <h2 className="text-xl font-semibold mb-4">Generate Alpha Ideas</h2>
@@ -62,10 +114,10 @@ export default function AlphaGenerator({ selectedFields, selectedOperators, pdfF
             <div className="flex flex-wrap gap-2">
               {selectedFields.map((field) => (
                 <span
-                  key={field}
+                  key={field.id}
                   className="px-3 py-1 bg-blue-900/30 text-blue-200 rounded-full text-sm"
                 >
-                  {field}
+                  {field.id}
                 </span>
               ))}
             </div>
@@ -151,6 +203,14 @@ export default function AlphaGenerator({ selectedFields, selectedOperators, pdfF
                         ))}
                       </pre>
                     </div>
+                    
+                    <Button 
+                      onClick={() => handleQueueSimulation(idea.alpha_expression)}
+                      className="w-full bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 border border-blue-500/30"
+                    >
+                      <Play className="w-4 h-4 mr-2" />
+                      Queue for Simulation
+                    </Button>
                   </div>
                 </div>
               ))}

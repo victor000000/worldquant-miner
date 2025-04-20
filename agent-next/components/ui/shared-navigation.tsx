@@ -8,7 +8,8 @@ import {
   IconDatabase,
   IconChartDots,
   IconNetwork,
-  IconGitBranch
+  IconGitBranch,
+  IconActivity
 } from '@tabler/icons-react';
 
 export const sharedNavItems = [
@@ -17,6 +18,7 @@ export const sharedNavItems = [
   { title: 'Web Miner', icon: <IconWorld className="h-5 w-5" />, href: '/web-miner' },
   { title: 'Alpha Polisher', icon: <IconBrain className="h-5 w-5" />, href: '/alpha-polisher' },
   { title: 'Results', icon: <IconChartDots className="h-5 w-5" />, href: '/results' },
+  { title: 'Simulation', icon: <IconActivity className="h-5 w-5" />, href: '/simulation' },
   { title: 'Pinecone', icon: <IconDatabase className="h-5 w-5" />, href: '/pinecone' },
   { title: 'Networks', icon: <IconNetwork className="h-5 w-5" />, href: '/networks' },
   { title: 'Network Designer', icon: <IconGitBranch className="h-5 w-5" />, href: '/network-designer' },
