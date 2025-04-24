@@ -126,7 +126,110 @@ python machine_miner.py
 ### Preview
 ![Agent site](./agent-site.jpg)
 
+## A2A Protocol Implementation
+### Introduction
+- Key Points
+  - Implementation of Agent-to-Agent (A2A) protocol for automated financial research
+  - Prescriptive agent architecture mimicking real-world financial analyst workflows
+  - Integration with existing WorldQuant Alpha Generator components
+  - Automated alpha mining pipeline with specialized agents
 
+### Architecture
+\`\`\`mermaid
+graph TD
+  subgraph Data Collection
+    WC[Web Crawler] -->|Financial News| DP[Data Processor]
+    FPE[PDF Extractor] -->|Research Papers| DP
+    DP -->|Structured Data| DB[(Knowledge Base)]
+  end
+
+  subgraph Alpha Research
+    AIG[Alpha Idea Generator] -->|New Ideas| AIS[Alpha Idea Simulator]
+    AIS -->|Validated Ideas| ACS[Alpha Config Setter]
+    ACS -->|Optimized Configs| MAB[Multi-Arm Bandit]
+  end
+
+  subgraph Execution
+    MAB -->|Best Actions| EX[Executor]
+    EX -->|Results| DB
+  end
+
+  subgraph Feedback Loop
+    DB -->|Historical Data| AIG
+    DB -->|Performance Metrics| MAB
+  end
+
+  style WC fill:#3b82f6,stroke:#1d4ed8,color:#fff
+  style FPE fill:#3b82f6,stroke:#1d4ed8,color:#fff
+  style DP fill:#3b82f6,stroke:#1d4ed8,color:#fff
+  style AIG fill:#10b981,stroke:#047857,color:#fff
+  style AIS fill:#10b981,stroke:#047857,color:#fff
+  style ACS fill:#10b981,stroke:#047857,color:#fff
+  style MAB fill:#f59e0b,stroke:#b45309,color:#fff
+  style EX fill:#f59e0b,stroke:#b45309,color:#fff
+  style DB fill:#6366f1,stroke:#4f46e5,color:#fff
+\`\`\`
+
+- **Data Collection Agents**
+  - Web Crawler Agent: Automated financial news and market data collection
+  - PDF Extractor Agent: Research paper processing and information extraction
+  - Data Processor Agent: Data transformation and knowledge base management
+
+- **Alpha Research Agents**
+  - Alpha Idea Generator Agent: Pattern recognition and idea generation
+  - Alpha Idea Simulator Agent: Validation and testing of alpha ideas
+  - Alpha Config Setter Agent: Parameter optimization and configuration
+
+- **Execution Agents**
+  - Multi-Arm Bandit Agent: Reinforcement learning for action selection
+  - Executor Agent: Implementation and monitoring of selected actions
+
+### Communication Flow
+\`\`\`mermaid
+sequenceDiagram
+  participant WC as Web Crawler
+  participant FPE as PDF Extractor
+  participant DP as Data Processor
+  participant AIG as Alpha Idea Generator
+  participant AIS as Alpha Idea Simulator
+  participant ACS as Alpha Config Setter
+  participant MAB as Multi-Arm Bandit
+  participant EX as Executor
+  participant DB as Knowledge Base
+
+  WC->>DP: Financial News
+  FPE->>DP: Research Papers
+  DP->>DB: Structured Data
+  DB->>AIG: Historical Data
+  AIG->>AIS: New Alpha Ideas
+  AIS->>ACS: Validated Ideas
+  ACS->>MAB: Optimized Configs
+  MAB->>EX: Best Actions
+  EX->>DB: Results
+  DB->>MAB: Performance Metrics
+\`\`\`
+
+### Features
+- Automated research workflow orchestration
+- Structured data exchange between agents
+- Performance feedback loops
+- Knowledge base integration
+- Real-time progress tracking
+- Priority-based task scheduling
+
+### Integration with Existing Components
+- Vector database integration for agent memories
+- API integration with WorldQuant platform
+- Web interface for monitoring and control
+- Automated alpha submission pipeline
+
+### Future Enhancements
+- Advanced natural language processing for research paper analysis
+- Machine learning models for pattern recognition
+- Automated hypothesis generation and testing
+- Real-time market data integration
+- Performance optimization and scaling
+- Enhanced error handling and recovery mechanisms
 
 # Contribute
 ## How to Contribute

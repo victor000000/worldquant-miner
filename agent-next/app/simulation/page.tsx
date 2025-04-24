@@ -244,9 +244,9 @@ export default function SimulationPage() {
       // Check if we need to wait due to rate limiting
       if (retryAfter > now) continue;
 
-      try {
+    try {
         addLog('info', `Checking progress for simulation ${id}`);
-        
+      
         const jwtToken = getStoredCredentials()?.jwtToken;
         
         const response = await fetch(`/api/simulations/progress?url=${encodeURIComponent(sim.progress_url!)}`, {
@@ -305,13 +305,13 @@ export default function SimulationPage() {
             
             try {
               const jsonData = JSON.parse(message.slice(6)); // Remove 'data: ' prefix
-              
+          
               if (jsonData.status === 'complete') {
                 await updateSimulation(id, {
-                  status: 'completed',
-                  progress: 100,
+              status: 'completed',
+              progress: 100,
                   result: jsonData.result
-                });
+            });
                 completed.push(id);
                 addLog('success', `Simulation ${id} completed successfully`);
               } else if (jsonData.status === 'error') {
@@ -323,9 +323,9 @@ export default function SimulationPage() {
                   retryQueue.push(id);
                 } else {
                   await updateSimulation(id, {
-                    status: 'error',
+              status: 'error',
                     error: jsonData.error
-                  });
+            });
                   completed.push(id);
                   addLog('error', `Simulation ${id} failed: ${jsonData.error}`);
                 }
@@ -337,7 +337,7 @@ export default function SimulationPage() {
                 // Update the simulation progress in the database
                 await updateSimulation(id, {
                   progress: jsonData.progress
-                });
+            });
               }
             } catch (error) {
               addLog('error', `Error parsing SSE message for simulation ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -427,8 +427,8 @@ export default function SimulationPage() {
       if (checkInterval) {
         clearInterval(checkInterval);
         setCheckInterval(null);
-      }
-    };
+    }
+  };
   }, [simulatingSimulations]);
 
   const handleBatchSubmit = async () => {
@@ -574,7 +574,7 @@ export default function SimulationPage() {
   const totalPages = (status: string) => {
     const filtered = getFilteredSimulations(status);
     return Math.ceil(filtered.length / itemsPerPage);
-  };
+    };
 
   const handlePageChange = (status: string, page: number) => {
     setCurrentPage(prev => ({
@@ -777,11 +777,11 @@ export default function SimulationPage() {
         <div className="lg:col-span-3">
           <Tabs defaultValue="queued" className="space-y-2">
             <div className="flex justify-between items-center">
-              <TabsList className="grid grid-cols-3 w-full max-w-md">
-                <TabsTrigger value="queued">Queued</TabsTrigger>
-                <TabsTrigger value="simulating">Simulating</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
-              </TabsList>
+            <TabsList className="grid grid-cols-3 w-full max-w-md">
+              <TabsTrigger value="queued">Queued</TabsTrigger>
+              <TabsTrigger value="simulating">Simulating</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+            </TabsList>
               <div className="flex items-center space-x-2">
                 <Label htmlFor="promising-filter" className="text-xs">Show Promising Only</Label>
                 <input
@@ -828,23 +828,23 @@ export default function SimulationPage() {
                   <CardHeader className="p-2">
                     <CardTitle className="text-sm">Simulation {simulation.id}</CardTitle>
                     <CardDescription className="text-xs">Queued for processing</CardDescription>
-                  </CardHeader>
+                    </CardHeader>
                   <CardContent className="p-2">
                     <div className="space-y-1">
                       <pre className="bg-muted p-1 rounded text-xs overflow-x-auto">
-                        {simulation.alpha_expression}
-                      </pre>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleViewDetails(simulation)}
+                          {simulation.alpha_expression}
+                        </pre>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => handleViewDetails(simulation)}
                         className="h-7 text-xs"
-                      >
-                        View Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               {getFilteredSimulations('queued').length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">No queued simulations</p>
               )}
@@ -884,24 +884,24 @@ export default function SimulationPage() {
                   <CardHeader className="p-2">
                     <CardTitle className="text-sm">Simulation {simulation.id}</CardTitle>
                     <CardDescription className="text-xs">In progress</CardDescription>
-                  </CardHeader>
+                    </CardHeader>
                   <CardContent className="p-2">
                     <div className="space-y-2">
                       <Progress value={simulation.progress} className="h-1" />
                       <pre className="bg-muted p-1 rounded text-xs overflow-x-auto">
-                        {simulation.alpha_expression}
-                      </pre>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleViewDetails(simulation)}
+                          {simulation.alpha_expression}
+                        </pre>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => handleViewDetails(simulation)}
                         className="h-7 text-xs"
-                      >
-                        View Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               {getFilteredSimulations('simulating').length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">No simulating simulations</p>
               )}
@@ -941,37 +941,37 @@ export default function SimulationPage() {
                   <CardHeader className="p-2">
                     <CardTitle className="text-sm">Simulation {simulation.id}</CardTitle>
                     <CardDescription className="text-xs">
-                      {simulation.status === 'completed' ? 'Completed' : 'Error'}
-                    </CardDescription>
-                  </CardHeader>
+                        {simulation.status === 'completed' ? 'Completed' : 'Error'}
+                      </CardDescription>
+                    </CardHeader>
                   <CardContent className="p-2">
                     <div className="space-y-2">
-                      {simulation.status === 'completed' && simulation.result && (
+                        {simulation.status === 'completed' && simulation.result && (
                         <div className="grid grid-cols-3 gap-2">
-                          <div>
+                            <div>
                             <p className="text-xs font-medium">Fitness</p>
                             <p className="text-lg font-bold">{simulation.result.fitness.toFixed(3)}</p>
-                          </div>
-                          <div>
+                            </div>
+                            <div>
                             <p className="text-xs font-medium">Sharpe</p>
                             <p className="text-lg font-bold">{simulation.result.sharpe.toFixed(3)}</p>
-                          </div>
-                          <div>
+                            </div>
+                            <div>
                             <p className="text-xs font-medium">Turnover</p>
                             <p className="text-lg font-bold">{simulation.result.turnover.toFixed(3)}</p>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      {simulation.status === 'error' && (
+                        )}
+                        {simulation.status === 'error' && (
                         <Alert variant="destructive" className="p-2">
                           <AlertCircle className="h-3 w-3" />
                           <AlertTitle className="text-xs">Error</AlertTitle>
                           <AlertDescription className="text-xs">{simulation.error}</AlertDescription>
-                        </Alert>
-                      )}
+                          </Alert>
+                        )}
                       <pre className="bg-muted p-1 rounded text-xs overflow-x-auto">
-                        {simulation.alpha_expression}
-                      </pre>
+                          {simulation.alpha_expression}
+                        </pre>
                       <div className="flex gap-1">
                         <Button 
                           variant="outline" 
@@ -988,10 +988,10 @@ export default function SimulationPage() {
                           Requeue
                         </Button>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               {getFilteredSimulations('completed').length === 0 && (
                 <p className="text-xs text-muted-foreground text-center py-4">
                   {showPromisingOnly ? 'No promising simulations found' : 'No completed simulations'}

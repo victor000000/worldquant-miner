@@ -25,4 +25,5 @@ export const sharedNavItems = [
   { title: 'Brain', icon: <IconBrain className="h-5 w-5" />, href: '/brain' },
   { title: 'Settings', icon: <IconSettings className="h-5 w-5" />, href: '/settings' },
   { title: 'Profile', icon: <IconUser className="h-5 w-5" />, href: '/profile' },
+  { title: 'A2A', icon: <IconBrain className="h-5 w-5" />, href: '/a2a' },
 ]; 
