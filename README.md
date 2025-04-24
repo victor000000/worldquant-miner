@@ -135,7 +135,7 @@ python machine_miner.py
   - Automated alpha mining pipeline with specialized agents
 
 ### Architecture
-\`\`\`mermaid
+```mermaid
 graph TD
   subgraph Data Collection
     WC[Web Crawler] -->|Financial News| DP[Data Processor]
@@ -168,7 +168,7 @@ graph TD
   style MAB fill:#f59e0b,stroke:#b45309,color:#fff
   style EX fill:#f59e0b,stroke:#b45309,color:#fff
   style DB fill:#6366f1,stroke:#4f46e5,color:#fff
-\`\`\`
+```
 
 - **Data Collection Agents**
   - Web Crawler Agent: Automated financial news and market data collection
@@ -185,7 +185,7 @@ graph TD
   - Executor Agent: Implementation and monitoring of selected actions
 
 ### Communication Flow
-\`\`\`mermaid
+```mermaid
 sequenceDiagram
   participant WC as Web Crawler
   participant FPE as PDF Extractor
@@ -207,7 +207,7 @@ sequenceDiagram
   MAB->>EX: Best Actions
   EX->>DB: Results
   DB->>MAB: Performance Metrics
-\`\`\`
+```
 
 ### Features
 - Automated research workflow orchestration
