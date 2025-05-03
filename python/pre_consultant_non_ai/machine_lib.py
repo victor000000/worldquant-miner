@@ -11,6 +11,7 @@ from itertools import combinations
 from collections import defaultdict
 import pickle
 import logging
+import re
 
 arsenal = ["ts_moment", "ts_entropy", "ts_min_max_cps", "ts_min_max_diff", "inst_tvr", 'sigmoid', 
            "ts_decay_exp_window", "ts_percentage", "vector_neut", "vector_proj", "signed_power"]
@@ -31,6 +32,8 @@ class WorldQuantBrain:
                       "ts_max_diff", "ts_returns", "ts_scale", "ts_skewness", "ts_kurtosis",  
                       "ts_quantile"]
         self.ops_set = self.basic_ops + self.ts_ops + arsenal + group_ops
+        # Add list of known inaccessible operators
+        self.inaccessible_ops = ["log_diff", "s_log_1p", "fraction", "quantile"]
         self.login()
 
     def login(self):
@@ -50,6 +53,21 @@ class WorldQuantBrain:
         logging.info("Authentication successful")
         return self.session
 
+    def _extract_inaccessible_operator(self, error_message: str) -> str:
+        """Extract the inaccessible operator from error message."""
+        match = re.search(r'operator "([^"]+)"', error_message)
+        if match:
+            return match.group(1)
+        return None
+
+    def _has_inaccessible_operator(self, alpha: str) -> bool:
+        """Check if alpha expression contains any inaccessible operators."""
+        for op in self.inaccessible_ops:
+            if op in alpha:
+                logging.warning(f"Skipping alpha with inaccessible operator '{op}': {alpha}")
+                return True
+        return False
+
     def single_simulate(self, alpha_data: list, neut: str, region: str, universe: str) -> dict:
         """Run a single alpha simulation."""
         logging.info(f"Starting single simulation for alpha")
@@ -59,6 +77,10 @@ class WorldQuantBrain:
         
         for sim_data in sim_data_list:
             try:
+                # Skip simulation if alpha contains inaccessible operators
+                if self._has_inaccessible_operator(sim_data['regular']):
+                    continue
+                    
                 simulation_response = self.session.post('https://api.worldquantbrain.com/simulations', 
                                                      json=sim_data)
                 if simulation_response.status_code == 401:
@@ -104,7 +126,15 @@ class WorldQuantBrain:
                     if status == "COMPLETE":
                         return result
                     elif status in ["FAILED", "ERROR"]:
+                        error_message = result.get("message", "")
                         logging.error(f"Simulation failed: {result}")
+                        
+                        # Check if error is due to inaccessible operator
+                        inaccessible_op = self._extract_inaccessible_operator(error_message)
+                        if inaccessible_op and inaccessible_op not in self.inaccessible_ops:
+                            logging.info(f"Adding new inaccessible operator: {inaccessible_op}")
+                            self.inaccessible_ops.append(inaccessible_op)
+                        
                         return None
                     
                     break

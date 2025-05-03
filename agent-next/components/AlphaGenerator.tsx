@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Play } from 'lucide-react';
-import { openIndexedDB } from '@/lib/indexedDB';
+import { openDatabase, addSimulation } from '@/lib/indexedDB';
 import { Button } from '@/components/ui/button';
-import { addSimulation } from '../lib/indexedDB';
 
 interface Simulation {
   id: string;
@@ -82,7 +81,7 @@ export default function AlphaGenerator({ selectedFields, selectedOperators, pdfF
 
   const handleQueueSimulation = async (alpha: string) => {
     try {
-      const db = await openIndexedDB();
+      const db = await openDatabase();
       const tx = db.transaction('simulations', 'readwrite');
       const store = tx.objectStore('simulations');
       
