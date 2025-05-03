@@ -244,7 +244,7 @@ export default function SimulationPage() {
       // Check if we need to wait due to rate limiting
       if (retryAfter > now) continue;
 
-    try {
+      try {
         addLog('info', `Checking progress for simulation ${id}`);
       
         const jwtToken = getStoredCredentials()?.jwtToken;
@@ -308,10 +308,10 @@ export default function SimulationPage() {
           
               if (jsonData.status === 'complete') {
                 await updateSimulation(id, {
-              status: 'completed',
-              progress: 100,
+                  status: 'completed',
+                  progress: 100,
                   result: jsonData.result
-            });
+                });
                 completed.push(id);
                 addLog('success', `Simulation ${id} completed successfully`);
               } else if (jsonData.status === 'error') {
@@ -322,12 +322,13 @@ export default function SimulationPage() {
                   setWaitingQueue(prev => [...prev, sim]);
                   retryQueue.push(id);
                 } else {
+                  // Mark as failed for any other error
                   await updateSimulation(id, {
-              status: 'error',
-                    error: jsonData.error
-            });
+                    status: 'error',
+                    error: jsonData.error || jsonData.detail || 'Unknown error'
+                  });
                   completed.push(id);
-                  addLog('error', `Simulation ${id} failed: ${jsonData.error}`);
+                  addLog('error', `Simulation ${id} failed: ${jsonData.error || jsonData.detail || 'Unknown error'}`);
                 }
               } else if (jsonData.status === 'in_progress') {
                 setCurrentProgress(prev => ({
@@ -337,7 +338,7 @@ export default function SimulationPage() {
                 // Update the simulation progress in the database
                 await updateSimulation(id, {
                   progress: jsonData.progress
-            });
+                });
               }
             } catch (error) {
               addLog('error', `Error parsing SSE message for simulation ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -345,6 +346,12 @@ export default function SimulationPage() {
           }
         }
       } catch (error) {
+        // Mark as failed for any error during progress check
+        await updateSimulation(id, {
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        completed.push(id);
         addLog('error', `Error checking progress for simulation ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }

@@ -17,6 +17,7 @@ This project is a collection of scripts that generate and submit alphas to the W
 
 
 Discord: https://discord.gg/K8X5xu2e
+
 Usage Tutorial(WIP) on the web version: https://www.youtube.com/watch?v=xwr9atsulSA
 
 
@@ -52,17 +53,95 @@ pip install -r requirements.txt
 
 ### Usage
 
+#### Alpha Generator
+
+The pre-consultant Python alpha generator uses Kimi AI to generate alpha expressions. Notice this may get you some alpha ideas but it is not guaranteed to work and is likely to cost you money.
+
 ```bash
 python alpha_generator.py
 ```
 
+#### Alpha Expression Miner
+
+This script is used to mine alpha expressions from a given expression.
+
 ```bash
 python alpha_expression_miner.py --expression "expression"
+
+
+PS ~> python .\alpha_expression_miner.py --expression "cashflow_stability = ts_mean(cashflow_op, 252) / (debt_lt + 0.01);
+>> stability_z = zscore(cashflow_stability);
+>> debt_ratio = debt_lt / (assets + 0.01);
+>> combined_score = stability_z - zscore(debt_ratio);
+>> -rank(combined_score)"
+2025-05-04 01:37:50,111 - INFO - Starting alpha expression mining with parameters:
+2025-05-04 01:37:50,111 - INFO - Expression: cashflow_stability = ts_mean(cashflow_op, 252) / (debt_lt + 0.01);
+stability_z = zscore(cashflow_stability);
+debt_ratio = debt_lt / (assets + 0.01);
+combined_score = stability_z - zscore(debt_ratio);
+-rank(combined_score)
+2025-05-04 01:37:50,111 - INFO - Output file: mined_expressions.json
+2025-05-04 01:37:50,112 - INFO - Initializing AlphaExpressionMiner
+2025-05-04 01:37:50,112 - INFO - Loading credentials from ./credential.txt
+2025-05-04 01:37:50,112 - INFO - Authenticating with WorldQuant Brain...
+2025-05-04 01:37:51,303 - INFO - Authentication response status: 201
+2025-05-04 01:37:51,303 - INFO - Authentication successful
+2025-05-04 01:37:51,303 - INFO - Parsing expression: cashflow_stability = ts_mean(cashflow_op, 252) / (debt_lt + 0.01);
+stability_z = zscore(cashflow_stability);
+debt_ratio = debt_lt / (assets + 0.01);
+combined_score = stability_z - zscore(debt_ratio);
+-rank(combined_score)
+2025-05-04 01:37:51,303 - INFO - Found 3 parameters to vary
+
+Found the following parameters in the expression:
+1. Value: 252.0 | Context: ...s_mean(cashflow_op, 252) / (debt_lt + 0.01)...
+2. Value: 0.01 | Context: ..., 252) / (debt_lt + 0.01);
+stability_z = zsc...
+3. Value: 0.01 | Context: ...debt_lt / (assets + 0.01);
+combined_score = ...
+
+Enter the numbers of parameters to vary (comma-separated, or 'all'): all
+
+Parameter: 252.0 | Context: ...s_mean(cashflow_op, 252) / (debt_lt + 0.01)...
+Enter range (e.g., '10' for ±10, or '5,15' for 5 to 15): 25
+Enter step size: 1
+
+Parameter: 0.01 | Context: ..., 252) / (debt_lt + 0.01);
+stability_z = zsc...
+Enter range (e.g., '10' for ±10, or '5,15' for 5 to 15): -0.05,0.05
+Enter step size: 0.01
+
+Parameter: 0.01 | Context: ...debt_lt / (assets + 0.01);
+combined_score = ...
+Enter range (e.g., '10' for ±10, or '5,15' for 5 to 15): -0.05,0.05
+Enter step size: 0.01
+2025-05-04 01:38:18,371 - INFO - Generating variations based on selected parameters
+2025-05-04 01:38:18,375 - INFO - Generated 5100 total variations
+2025-05-04 01:38:18,376 - INFO - Testing variation 1/5100: cashflow_stability = ts_mean(cashflow_op, 227) / (debt_lt + -0.05);
+stability_z = zscore(cashflow_stability);
+debt_ratio = debt_lt / (assets + -0.05);
+combined_score = stability_z - zscore(debt_ratio);
+-rank(combined_score)
+2025-05-04 01:38:18,376 - INFO - Testing alpha: cashflow_stability = ts_mean(cashflow_op, 227) / (debt_lt + -0.05);
+stability_z = zscore(cashflow_stability);
+debt_ratio = debt_lt / (assets + -0.05);
+combined_score = stability_z - zscore(debt_ratio);
+-rank(combined_score)
+2025-05-04 01:38:18,754 - INFO - Simulation creation response: 201
+
 ```
+
+#### Clean Up Logs
+
+This script is used to clean up the logs.
 
 ```bash
 python clean_up_logs.py
 ```
+
+#### Successful Alpha Submitter
+
+This script is used to submit successful alphas to the WorldQuant platform. It's not recommended to use this script as of now because it submits alphas in one batch instead of once per day.
 
 ```bash
 python successful_alpha_submitter.py
