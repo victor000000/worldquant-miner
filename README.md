@@ -43,7 +43,20 @@ cargo run --release
 
 This is a Python implementation of the alpha generator.
 
+## Introduction: Difference between Pre-Consultant and Consultant
+
+- Pre-Consultant has maximum 5 concurrent simulations
+- Pre-Consultant has fewer operators and data fields options
+
 ## Pre-Consultant
+
+This is basically a closed loop system where it starts with alpha_generator.py, which generates alpha ideas with Kimi AI. Then it dumps promising alpha to a local log file, which promising_alpha_miner.py will mine for better results, and dumps refined alpha to a local log file, which you can run successful_alpha_submitter.py to submit to the WorldQuant platform. These script can run concurrently.
+
+While alpha_expression_miner.py is more of a utility script to mine alpha expressions from a given expression manually but not within the aforementioned closed loop system.
+
+alpha_101_testing is currently under development.
+
+alpha_polisher.py is currently under development.
 
 ### Installation
 
@@ -55,7 +68,10 @@ pip install -r requirements.txt
 
 #### Alpha Generator
 
-The pre-consultant Python alpha generator uses Kimi AI to generate alpha expressions. Notice this may get you some alpha ideas but it is not guaranteed to work and is likely to cost you money.
+The pre-consultant Python alpha generator uses Kimi AI to generate alpha expressions. Notice this may get you some alpha ideas as long as you are fine with the cost.
+
+Human in the loop control is the future development direction of this script.
+
 
 ```bash
 python alpha_generator.py
@@ -147,10 +163,53 @@ This script is used to submit successful alphas to the WorldQuant platform. It's
 python successful_alpha_submitter.py
 ```
 
+## Pre-Consultant Non-AI
+The `machine_lib.py` module provides core functionality for alpha generation and testing through the WorldQuant platform. Here are the key components:
 
+### WorldQuantBrain Class
+The main class that handles interactions with WorldQuant's API and alpha generation logic:
+
+- Authentication and session management with WorldQuant platform
+- Fetching and processing data fields (matrix and vector types)
+- Generating alpha expressions using operators and data fields
+- Running simulations to test alpha performance
+- Processing and analyzing simulation results
+
+### Key Features
+- Automated alpha generation using combinations of:
+  - Data fields (matrix and vector types)
+  - Mathematical operators (+, -, *, /, etc.)
+  - Ranking and scoring functions
+  - Time series operations
+- Simulation capabilities:
+  - Single alpha testing
+  - Batch simulation support
+  - Performance metrics calculation
+- Result processing:
+  - Filtering based on performance thresholds
+  - Storing successful alphas
+  - Error handling and logging
+
+### Data Processing
+- Data field categorization (matrix vs vector)
+- Expression validation
+- Performance metric calculations:
+  - Information Ratio (IR)
+  - Returns
+  - Turnover
+  - Correlation analysis
+
+The library serves as the foundation for automated alpha mining and testing, providing the necessary tools to interact with WorldQuant's platform programmatically.
+
+```bash
+python machine_miner.py --username your_worldquant_username --password your_worldquant_password
+```
 
 
 ## Consultant
+
+Just like the pre-consultant non ai but without workaround like single simulation and skip for inaccessible data fields and operators.
+
 
 ### Installation
 
@@ -161,7 +220,7 @@ pip install -r requirements.txt
 ### Usage
 
 ```bash
-python machine_miner.py
+python machine_miner.py --username your_worldquant_username --password your_worldquant_password
 ```
 
 # TODO
