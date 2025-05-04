@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { retryWithBackoff, DenseEmbedding } from '@/lib/pinecone';
 import { Pinecone } from '@pinecone-database/pinecone';
-import { generateRandomVector, formatMetadata, retryWithBackoff } from '@/lib/pinecone';
 
 // Initialize the Pinecone client
 const pc = new Pinecone({
@@ -85,36 +85,54 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { operatorId } = body;
+    const { operatorId, operatorInfo } = body;
 
     if (!operatorId) {
       return NextResponse.json({ success: false, error: 'Operator ID is required' }, { status: 400 });
     }
 
-    // Find the operator
-    const operator = baseOperators.find(op => op.id === operatorId);
-    if (!operator) {
-      return NextResponse.json({ success: false, error: 'Operator not found' }, { status: 404 });
+    if (!operatorInfo) {
+      return NextResponse.json({ success: false, error: 'Operator information is required' }, { status: 400 });
     }
 
-    // Create mock vectors for demonstration
-    const mockVectors = Array.from({ length: 10 }, (_, i) => ({
-      id: `${operatorId}-${i}`,
-      values: generateRandomVector(1536),
-      metadata: formatMetadata({
-        name: operator.name,
-        category: operator.category,
-        description: operator.description,
-        type: 'operator'
-      })
-    }));
+    const { name, category, description } = operatorInfo;
+
+    if (!name || !category) {
+      return NextResponse.json({ success: false, error: 'Operator name and category are required' }, { status: 400 });
+    }
+
+    // Generate embeddings using Pinecone's inference API
+    const textToEmbed = `${name} ${category} ${description || ''}`;
+    const embeddings = await pc.inference.embed(
+      "multilingual-e5-large",
+      [textToEmbed],
+      {
+        input_type: "passage",
+        truncate: "END"
+      }
+    );
+
+    // Create vectors with the generated embeddings
+    const vectors = [{
+      id: operatorId,
+      values: (embeddings.data[0] as any).values,
+      metadata: {
+        name: operatorInfo.name,
+        category: operatorInfo.category,
+        description: operatorInfo.description,
+        timestamp: new Date().toISOString()
+      }
+    }];
 
     // Upload the vectors to Pinecone
-    const result = await retryWithBackoff(() => index.namespace(operator.namespace).upsert(mockVectors));
+    const result = await retryWithBackoff(() => index.namespace('operators').upsert(vectors));
     
     return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Error uploading operator to Pinecone:', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Internal server error' 
+    }, { status: 500 });
   }
 } 

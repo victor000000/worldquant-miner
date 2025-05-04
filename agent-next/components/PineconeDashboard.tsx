@@ -127,21 +127,43 @@ export default function PineconeDashboard() {
         });
       }, 300);
       
-      const result = await uploadOperatorToPinecone(operatorId);
+      const operator = operators.find(op => op.id === operatorId);
+      if (!operator) {
+        throw new Error('Operator not found');
+      }
+
+      // Format the operator information
+      const operatorInfo = {
+        name: operator.name || operatorId,
+        category: operator.category || 'Uncategorized',
+        description: operator.description || `Operator: ${operatorId}`
+      };
+
+      const result = await fetch('/api/pinecone/operators', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          operatorId,
+          operatorInfo
+        }),
+      });
+
+      if (!result.ok) {
+        const errorData = await result.json();
+        throw new Error(errorData.error || 'Failed to upload operator');
+      }
       
       clearInterval(progressInterval);
+      setUploadProgress(prev => ({ ...prev, [operatorId]: 100 }));
       
-      if (result.success) {
-        setUploadProgress(prev => ({ ...prev, [operatorId]: 100 }));
-        // Refresh operators to get updated status
-        const updatedOperators = await getOperators();
-        setOperators(updatedOperators);
-      } else {
-        setError(`Failed to upload operator: ${result.error?.message || 'Unknown error'}`);
-      }
+      // Refresh operators to get updated status
+      const updatedOperators = await getOperators();
+      setOperators(updatedOperators);
     } catch (err) {
       console.error('Error uploading operator:', err);
-      setError('Failed to upload operator. Please try again.');
+      setError(`Failed to upload operator: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 
@@ -162,21 +184,43 @@ export default function PineconeDashboard() {
         });
       }, 300);
       
-      const result = await uploadDataFieldToPinecone(dataFieldId);
+      const dataField = dataFields.find(df => df.id === dataFieldId);
+      if (!dataField) {
+        throw new Error('Data field not found');
+      }
+
+      // Format the data field information
+      const dataFieldInfo = {
+        name: dataField.name || dataField.id,
+        category: dataField.category || 'Uncategorized',
+        description: dataField.description || dataField.definition || `Data field: ${dataField.id}`
+      };
+
+      const result = await fetch('/api/pinecone/data-fields', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dataFieldId,
+          dataFieldInfo
+        }),
+      });
+
+      if (!result.ok) {
+        const errorData = await result.json();
+        throw new Error(errorData.error || 'Failed to upload data field');
+      }
       
       clearInterval(progressInterval);
+      setUploadProgress(prev => ({ ...prev, [dataFieldId]: 100 }));
       
-      if (result.success) {
-        setUploadProgress(prev => ({ ...prev, [dataFieldId]: 100 }));
-        // Refresh data fields to get updated status
-        const updatedDataFields = await getDataFields();
-        setDataFields(updatedDataFields);
-      } else {
-        setError(`Failed to upload data field: ${result.error?.message || 'Unknown error'}`);
-      }
+      // Refresh data fields to get updated status
+      const updatedDataFields = await getDataFields();
+      setDataFields(updatedDataFields);
     } catch (err) {
       console.error('Error uploading data field:', err);
-      setError('Failed to upload data field. Please try again.');
+      setError(`Failed to upload data field: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
 

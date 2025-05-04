@@ -58,24 +58,54 @@ export default function PineconeUploader() {
       // Upload operators
       for (const operator of operators) {
         setUploadMessage(`Uploading operator: ${operator.name}...`);
-        const result = await uploadOperatorToPinecone(operator.id);
+        const result = await fetch('/api/pinecone/operators', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            operatorId: operator.name,
+            operatorInfo: {
+              name: operator.name || operator.id,
+              category: operator.category || 'Uncategorized',
+              description: operator.description || `Operator: ${operator.id}`
+            }
+          }),
+        });
+        
         completedOperators++;
         setUploadProgress(Math.floor((completedOperators + completedDataFields) / totalItems * 100));
         
-        if (!result.success) {
-          console.error(`Failed to upload operator ${operator.name}:`, result.error);
+        if (!result.ok) {
+          const errorData = await result.json();
+          console.error(`Failed to upload operator ${operator.name}:`, errorData.error);
         }
       }
       
       // Upload data fields
       for (const field of dataFields) {
         setUploadMessage(`Uploading data field: ${field.name}...`);
-        const result = await uploadDataFieldToPinecone(field.id);
+        const result = await fetch('/api/pinecone/data-fields', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            dataFieldId: field.id,
+            dataFieldInfo: {
+              name: field.name || field.id,
+              category: field.category || 'Uncategorized',
+              description: field.description || field.definition || `Data field: ${field.id}`
+            }
+          }),
+        });
+        
         completedDataFields++;
         setUploadProgress(Math.floor((completedOperators + completedDataFields) / totalItems * 100));
         
-        if (!result.success) {
-          console.error(`Failed to upload data field ${field.name}:`, result.error);
+        if (!result.ok) {
+          const errorData = await result.json();
+          console.error(`Failed to upload data field ${field.name}:`, errorData.error);
         }
       }
       

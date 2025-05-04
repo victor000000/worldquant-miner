@@ -8,29 +8,61 @@
  */
 export async function upsertVectors(namespace: string, vectors: any[]) {
   try {
-    // Check if the data has the structure with count and results
-    if (vectors.length === 1 && vectors[0].count !== undefined && vectors[0].results !== undefined) {
-      console.log('Detected data with count and results structure. Transforming for Pinecone...');
+    // Validate input
+    if (!namespace) {
+      throw new Error('Namespace is required');
     }
-    
-    const response = await fetch('/api/pinecone', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        operation: 'upsert',
-        namespace,
-        data: vectors,
-      }),
+    if (!vectors || !Array.isArray(vectors)) {
+      throw new Error('Vectors must be an array');
+    }
+
+    // Transform vectors to match Pinecone format
+    const pineconeVectors = vectors.map(vector => {
+      // Ensure each vector has required fields
+      if (!vector.id) {
+        throw new Error('Each vector must have an id');
+      }
+      if (!vector.values || !Array.isArray(vector.values)) {
+        throw new Error('Each vector must have a values array');
+      }
+
+      return {
+        id: vector.id,
+        values: vector.values,
+        metadata: vector.metadata || {},
+        sparseValues: vector.sparseValues || undefined
+      };
     });
+
+    // Process in batches of 100 to avoid rate limits
+    const batchSize = 100;
+    const results = [];
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to upsert vectors');
+    for (let i = 0; i < pineconeVectors.length; i += batchSize) {
+      const batch = pineconeVectors.slice(i, i + batchSize);
+      
+      const response = await fetch('/api/pinecone', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          operation: 'upsert',
+          namespace,
+          data: batch,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upsert vectors');
+      }
+      
+      const result = await response.json();
+      results.push(result);
     }
     
-    return await response.json();
+    return { success: true, results };
   } catch (error) {
     console.error('Error upserting vectors:', error);
     throw error;
