@@ -1,6 +1,6 @@
 export const openDatabase = async () => {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('mcp-db', 1);
+    const request = indexedDB.open('worldquant-miner', 1);
     
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);

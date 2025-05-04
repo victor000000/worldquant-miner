@@ -4,35 +4,86 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getStoredJWT } from '../../lib/auth';
 import { createChatCompletion } from '../../lib/deepseek';
-import DataFieldSelector from '../../components/DataFieldSelector';
 import OperatorSelector from '../../components/OperatorSelector';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
-import { Loader2, Check, X } from 'lucide-react';
+import { Loader2, Check, X, Play } from 'lucide-react';
 import { FloatingDock } from '../../components/ui/floating-dock';
 import { sharedNavItems } from '../../components/ui/shared-navigation';
+import { openDatabase, addSimulation } from '@/lib/indexedDB';
+import { toast } from 'sonner';
 
 // Constants for token limits
 const MAX_TOKENS = 4000; // Approximate token limit for DeepSeek
 const TOKENS_PER_CHAR = 0.25; // Approximate tokens per character
 
+// Add type definitions
+interface PredictedMetrics {
+  sharpe: string;
+  fitness: string;
+  return: string;
+  drawdown: string;
+}
+
+interface AlphaIdea {
+  improved_expression: string;
+  reasoning: string;
+  predicted_metrics: PredictedMetrics;
+  suggested_operators: string[];
+}
+
+interface AlphaResponse {
+  ideas: AlphaIdea[];
+}
+
+interface Operator {
+  name: string;
+  category: string;
+  scope: string[];
+  definition: string;
+  description: string;
+  documentation: string;
+  level: string;
+  requiresLogin?: boolean;
+}
+
+interface Simulation {
+  id: string;
+  alpha_expression: string;
+  status: 'queued' | 'simulating' | 'completed' | 'error';
+  progress: number;
+  result?: {
+    fitness: number;
+    sharpe: number;
+    turnover: number;
+    [key: string]: any;
+  };
+  error?: string;
+  created_at: number;
+  updated_at: number;
+}
+
 export default function AlphaPolisherPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [selectedOperators, setSelectedOperators] = useState<string[]>([]);
   const [expression, setExpression] = useState('');
   const [suggestions, setSuggestions] = useState('');
-  const [generatedIdeas, setGeneratedIdeas] = useState<string[]>([]);
+  const [generatedIdeas, setGeneratedIdeas] = useState<(AlphaIdea | string)[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState('expression');
   const [isMounted, setIsMounted] = useState(false);
-  const [allFields, setAllFields] = useState<string[]>([]);
-  const [allOperators, setAllOperators] = useState<string[]>([]);
-  const [isUsingRAG, setIsUsingRAG] = useState(false);
+  const [allOperators, setAllOperators] = useState<Operator[]>([]);
+  const [currentSharpe, setCurrentSharpe] = useState('');
+  const [currentFitness, setCurrentFitness] = useState('');
+  const [currentReturn, setCurrentReturn] = useState('');
+  const [currentDrawdown, setCurrentDrawdown] = useState('');
+  const [streamingResponse, setStreamingResponse] = useState('');
+  const [requiresLogin, setRequiresLogin] = useState(false);
+  const [queuedSimulations, setQueuedSimulations] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setIsMounted(true);
@@ -49,18 +100,17 @@ export default function AlphaPolisherPage() {
     checkAuth();
   }, [router]);
 
-  // Fetch all available fields and operators on component mount
+  // Fetch all available operators and check login requirements on component mount
   useEffect(() => {
-    const fetchAllFieldsAndOperators = async () => {
+    const fetchOperatorsAndCheckLogin = async () => {
       try {
-        // Get the JWT token
         const jwtToken = getStoredJWT();
         
         if (!jwtToken) {
+          router.push('/login');
           return;
         }
         
-        // Fetch operators
         const operatorsResponse = await fetch('/api/operators', {
           method: 'POST',
           headers: {
@@ -71,69 +121,61 @@ export default function AlphaPolisherPage() {
           }),
         });
         
-        if (operatorsResponse.ok) {
-          const operatorsData = await operatorsResponse.json();
-          const operatorNames = operatorsData.map((op: any) => op.name);
-          setAllOperators(operatorNames);
-          // Select all operators by default
-          setSelectedOperators(operatorNames);
+        if (!operatorsResponse.ok) {
+          console.error('Failed to fetch operators:', operatorsResponse.statusText);
+          router.push('/login');
+          return;
         }
         
-        // Fetch data fields - get all fields by using a large limit
-        const fieldsResponse = await fetch('/api/data-fields', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            jwtToken,
-            dataset: 'fundamental6',
-            limit: '100', // Fetch a larger number of fields
-            instrumentType: 'EQUITY',
-            region: 'USA',
-            universe: 'TOP3000',
-            delay: '1',
-          }),
-        });
+        const operatorsData = await operatorsResponse.json();
+        setAllOperators(operatorsData);
         
-        if (fieldsResponse.ok) {
-          const fieldsData = await fieldsResponse.json();
-          const fieldIds = fieldsData.results.map((field: any) => field.id);
-          setAllFields(fieldIds);
-          // Select all fields by default
-          setSelectedFields(fieldIds);
+        // Select all operators by default
+        const operatorNames = operatorsData.map((op: Operator) => op.name);
+        setSelectedOperators(operatorNames);
+        
+        const requiresLogin = operatorsData.some((op: Operator) => op.requiresLogin);
+        setRequiresLogin(requiresLogin);
+        
+        if (requiresLogin && !isAuthenticated) {
+          router.push('/login');
         }
       } catch (error) {
-        console.error('Error fetching fields and operators:', error);
+        console.error('Error fetching operators:', error);
+        router.push('/login');
       }
     };
 
     if (isAuthenticated) {
-      fetchAllFieldsAndOperators();
+      fetchOperatorsAndCheckLogin();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
-  const handleFieldsSelected = (fields: string[]) => {
-    setSelectedFields(fields);
-  };
+  // Load saved suggestions on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedExpression = localStorage.getItem('alpha-polisher-expression');
+      const savedSuggestions = localStorage.getItem('alpha-polisher-suggestions');
+      if (savedExpression) setExpression(savedExpression);
+      if (savedSuggestions) setSuggestions(savedSuggestions);
+    }
+  }, []);
+
+  // Save suggestions when they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('alpha-polisher-expression', expression);
+      localStorage.setItem('alpha-polisher-suggestions', suggestions);
+    }
+  }, [expression, suggestions]);
 
   const handleOperatorsSelected = (operators: string[]) => {
     setSelectedOperators(operators);
   };
 
-  // Handle select all fields
-  const handleSelectAllFields = () => {
-    setSelectedFields(allFields);
-  };
-
-  // Handle deselect all fields
-  const handleDeselectAllFields = () => {
-    setSelectedFields([]);
-  };
-
   // Handle select all operators
   const handleSelectAllOperators = () => {
-    setSelectedOperators(allOperators);
+    setSelectedOperators(allOperators.map(op => op.name));
   };
 
   // Handle deselect all operators
@@ -223,59 +265,188 @@ export default function AlphaPolisherPage() {
     }
 
     setIsGenerating(true);
-    setIsUsingRAG(false);
+    setStreamingResponse('');
     
     try {
       const systemPrompt = `You are an expert in quantitative finance and alpha generation for the WorldQuant platform. 
-Your task is to generate alpha ideas based on the provided information. 
-Focus on creating alphas that are likely to be profitable, statistically significant, and economically sound.`;
+Your task is to analyze the provided alpha expression and its performance metrics, then suggest improvements.
+Focus on creating alphas that are likely to be profitable, statistically significant, and economically sound.
+Consider the current performance metrics and suggest specific improvements that could enhance them.
+
+IMPORTANT:
+1. Only use the operators provided in the selected operators list. Do not add any other operators.
+2. Do not include any Python code or programming syntax.
+3. Format your response as a valid JSON object with the following structure:
+{
+  "ideas": [
+    {
+      "improved_expression": "string",
+      "reasoning": "string",
+      "predicted_metrics": {
+        "sharpe": "string",
+        "fitness": "string",
+        "return": "string",
+        "drawdown": "string"
+      },
+      "suggested_operators": ["string"]
+    }
+  ]
+}
+4. Keep the alpha expressions simple and clear, using only the provided operators.
+5. Use the operator definitions provided to ensure correct usage.`;
+
+      // Format operator information for the prompt
+      const operatorInfo = allOperators
+        .filter(op => selectedOperators.includes(op.name))
+        .map(op => `Operator: ${op.name}
+Definition: ${op.definition}
+Description: ${op.description}
+Category: ${op.category}
+Scope: ${op.scope.join(', ')}`)
+        .join('\n\n');
 
       let userPrompt = '';
       
       if (activeTab === 'expression') {
         userPrompt = `I have an alpha expression: "${expression}"
         
-Selected data fields: ${selectedFields.join(', ')}
-Selected operators: ${selectedOperators.join(', ')}
+Current Performance Metrics:
+- Sharpe Ratio: ${currentSharpe || 'Not provided'}
+- Fitness: ${currentFitness || 'Not provided'}
+- Return: ${currentReturn || 'Not provided'}
+- Maximum Drawdown: ${currentDrawdown || 'Not provided'}
 
-Please analyze this expression and suggest 5 improvements or variations that might improve its performance. 
-For each suggestion, explain the reasoning behind it and potential benefits.`;
+Available Operators and their definitions:
+${operatorInfo}
+
+Please analyze this expression and its performance metrics, then suggest 5 specific improvements or variations that might improve its performance. 
+For each suggestion, provide:
+1. The improved alpha expression (using only the provided operators)
+2. The reasoning behind the improvement
+3. Predicted impact on performance metrics
+4. Additional operators from the provided list that could be beneficial`;
+
       } else {
         userPrompt = `I want to create alpha ideas based on these suggestions: "${suggestions}"
         
-Selected data fields: ${selectedFields.join(', ')}
-Selected operators: ${selectedOperators.join(', ')}
+Available Operators and their definitions:
+${operatorInfo}
 
-Please generate 5 alpha expressions based on these suggestions, using the selected data fields and operators where appropriate. 
-For each alpha, explain the reasoning behind it and potential benefits.`;
+Please generate 5 alpha expressions based on these suggestions, using only the selected operators. 
+For each alpha, provide:
+1. The complete alpha expression (using only the provided operators)
+2. The reasoning behind it
+3. Predicted performance metrics
+4. Additional operators from the provided list that could be beneficial`;
       }
 
-      // Estimate token count
-      const estimatedTokens = estimateTokenCount(systemPrompt + userPrompt);
-      
-      let response: string;
-      
-      if (estimatedTokens > MAX_TOKENS) {
-        // Use RAG for large inputs
-        setIsUsingRAG(true);
-        response = await implementRAG(userPrompt);
-      } else {
-        // Use standard approach for smaller inputs
-        response = await createChatCompletion([
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ]);
+      // Use streaming API with deep-reasoner
+      const response = await fetch('/api/deepseek-stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          model: 'deepseek-reasoner',
+          stream: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate alpha ideas');
       }
 
-      // Parse the response into individual alpha ideas
-      const ideas = response.split('\n\n').filter(idea => idea.trim().length > 0);
-      setGeneratedIdeas(ideas);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedResponse = '';
+
+      while (true) {
+        const { done, value } = await reader!.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+            
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.choices?.[0]?.delta?.content) {
+                accumulatedResponse += parsed.choices[0].delta.content;
+                setStreamingResponse(accumulatedResponse);
+              }
+            } catch (e) {
+              console.error('Error parsing streaming response:', e);
+            }
+          }
+        }
+      }
+
+      try {
+        // Clean the response by removing markdown formatting
+        let cleanResponse = accumulatedResponse
+          .replace(/```json\n/g, '')  // Remove opening ```json
+          .replace(/```\n/g, '')      // Remove closing ```
+          .replace(/```/g, '')        // Remove any remaining ```
+          .trim();                    // Remove extra whitespace
+
+        // Parse the final JSON response
+        const parsedResponse = JSON.parse(cleanResponse) as AlphaResponse;
+        if (parsedResponse.ideas) {
+          setGeneratedIdeas(parsedResponse.ideas);
+        }
+      } catch (e) {
+        console.error('Error parsing final response:', e);
+        console.log('Raw response:', accumulatedResponse);
+        setGeneratedIdeas([accumulatedResponse]);
+      }
     } catch (error) {
       console.error('Error generating alpha ideas:', error);
       alert('Failed to generate alpha ideas. Please try again.');
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleQueueSimulation = async (alpha: string) => {
+    try {
+      const db = await openDatabase();
+      
+      const simulation: Simulation = {
+        id: Date.now().toString(),
+        alpha_expression: alpha,
+        status: 'queued',
+        progress: 0,
+        created_at: Date.now(),
+        updated_at: Date.now()
+      };
+      
+      await addSimulation(db, simulation);
+      setQueuedSimulations(prev => new Set([...prev, alpha]));
+      toast.success('Alpha queued for simulation');
+    } catch (error) {
+      console.error('Error queueing simulation:', error);
+      toast.error('Failed to queue simulation');
+    }
+  };
+
+  const handleClearData = () => {
+    setExpression('');
+    setSuggestions('');
+    setGeneratedIdeas([]);
+    setStreamingResponse('');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('alpha-polisher-expression');
+      localStorage.removeItem('alpha-polisher-suggestions');
+    }
+    toast.success('Data cleared');
   };
 
   if (isLoading) {
@@ -292,45 +463,23 @@ For each alpha, explain the reasoning behind it and potential benefits.`;
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Alpha Polisher</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Alpha Polisher</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleClearData}
+          className="flex items-center gap-2"
+        >
+          <X className="h-4 w-4" />
+          Clear Data
+        </Button>
+      </div>
       <p className="text-muted-foreground mb-8">
         Use this tool to polish your alpha expressions or generate new ideas based on your suggestions.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Fields</CardTitle>
-            <CardDescription>Select the data fields you want to use in your alpha</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4 flex space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleSelectAllFields}
-                className="flex items-center"
-              >
-                <Check className="h-4 w-4 mr-1" />
-                Select All
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleDeselectAllFields}
-                className="flex items-center"
-              >
-                <X className="h-4 w-4 mr-1" />
-                Deselect All
-              </Button>
-            </div>
-            <DataFieldSelector 
-              onFieldsSelected={handleFieldsSelected} 
-              selectedFields={selectedFields}
-            />
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 gap-8 mb-8">
         <Card>
           <CardHeader>
             <CardTitle>Operators</CardTitle>
@@ -377,12 +526,56 @@ For each alpha, explain the reasoning behind it and potential benefits.`;
               <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
             </TabsList>
             <TabsContent value="expression">
-              <Textarea
-                placeholder="Enter your alpha expression here..."
-                className="min-h-[150px]"
-                value={expression}
-                onChange={(e) => setExpression(e.target.value)}
-              />
+              <div className="space-y-4">
+                <Textarea
+                  placeholder="Enter your alpha expression here..."
+                  className="min-h-[150px]"
+                  value={expression}
+                  onChange={(e) => setExpression(e.target.value)}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Current Sharpe Ratio</label>
+                    <input
+                      type="number"
+                      className="w-full p-2 border rounded"
+                      value={currentSharpe}
+                      onChange={(e) => setCurrentSharpe(e.target.value)}
+                      placeholder="Enter current Sharpe ratio"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Current Fitness</label>
+                    <input
+                      type="number"
+                      className="w-full p-2 border rounded"
+                      value={currentFitness}
+                      onChange={(e) => setCurrentFitness(e.target.value)}
+                      placeholder="Enter current fitness"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Current Return (%)</label>
+                    <input
+                      type="number"
+                      className="w-full p-2 border rounded"
+                      value={currentReturn}
+                      onChange={(e) => setCurrentReturn(e.target.value)}
+                      placeholder="Enter current return"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Maximum Drawdown (%)</label>
+                    <input
+                      type="number"
+                      className="w-full p-2 border rounded"
+                      value={currentDrawdown}
+                      onChange={(e) => setCurrentDrawdown(e.target.value)}
+                      placeholder="Enter maximum drawdown"
+                    />
+                  </div>
+                </div>
+              </div>
             </TabsContent>
             <TabsContent value="suggestions">
               <Textarea
@@ -403,7 +596,7 @@ For each alpha, explain the reasoning behind it and potential benefits.`;
             {isGenerating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isUsingRAG ? 'Using RAG for large input...' : 'Generating...'}
+                Generating...
               </>
             ) : (
               'Generate Alpha Ideas'
@@ -412,20 +605,75 @@ For each alpha, explain the reasoning behind it and potential benefits.`;
         </CardFooter>
       </Card>
 
+      {streamingResponse && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Streaming Response</CardTitle>
+            <CardDescription>Real-time generation of alpha ideas</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="prose max-w-none dark:prose-invert">
+              <pre className="whitespace-pre-wrap">{streamingResponse}</pre>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {generatedIdeas.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Generated Alpha Ideas</CardTitle>
-            <CardDescription>Here are some ideas based on your input</CardDescription>
+            <CardDescription>Here are the final alpha ideas based on your input</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
               {generatedIdeas.map((idea, index) => (
                 <div key={index} className="p-4 border rounded-lg">
-                  <div className="prose max-w-none">
-                    {idea.split('\n').map((line, i) => (
-                      <p key={i}>{line}</p>
-                    ))}
+                  <div className="prose max-w-none dark:prose-invert">
+                    {typeof idea === 'string' ? (
+                      <pre className="whitespace-pre-wrap">{idea}</pre>
+                    ) : (
+                      <>
+                        <h3 className="font-semibold">Improved Expression:</h3>
+                        <p className="font-mono bg-muted p-2 rounded">{idea.improved_expression}</p>
+                        
+                        <h3 className="font-semibold mt-4">Reasoning:</h3>
+                        <p>{idea.reasoning}</p>
+                        
+                        <h3 className="font-semibold mt-4">Predicted Metrics:</h3>
+                        <ul>
+                          <li>Sharpe Ratio: {idea.predicted_metrics.sharpe}</li>
+                          <li>Fitness: {idea.predicted_metrics.fitness}</li>
+                          <li>Return: {idea.predicted_metrics.return}</li>
+                          <li>Drawdown: {idea.predicted_metrics.drawdown}</li>
+                        </ul>
+                        
+                        <h3 className="font-semibold mt-4">Suggested Operators:</h3>
+                        <p>{idea.suggested_operators.join(', ')}</p>
+
+                        <div className="mt-4">
+                          <Button
+                            variant={queuedSimulations.has(idea.improved_expression) ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleQueueSimulation(idea.improved_expression)}
+                            className="flex items-center gap-2"
+                            disabled={queuedSimulations.has(idea.improved_expression)}
+                          >
+                            {queuedSimulations.has(idea.improved_expression) ? (
+                              <>
+                                <Check className="h-4 w-4" />
+                                Queued for Simulation
+                              </>
+                            ) : (
+                              <>
+                                <Play className="h-4 w-4" />
+                                Queue for Simulation
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

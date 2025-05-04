@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { openDatabase } from '@/lib/indexedDB';
 
 interface Simulation {
   id: string;
@@ -106,7 +107,8 @@ export default function SimulationPage() {
   
   const loadSimulations = async () => {
     try {
-      const allSimulations = await getSimulations();
+      const db = await openDatabase();
+      const allSimulations = await getSimulations(db);
 
       console.log('allSimulations', allSimulations);
       setSimulations(allSimulations || []);
@@ -229,6 +231,7 @@ export default function SimulationPage() {
     const now = Date.now();
     const completed: string[] = [];
     const retryQueue: string[] = [];
+    const db = await openDatabase();
 
     console.log('checking simulation progress');
 
@@ -307,7 +310,8 @@ export default function SimulationPage() {
               const jsonData = JSON.parse(message.slice(6)); // Remove 'data: ' prefix
           
               if (jsonData.status === 'complete') {
-                await updateSimulation(id, {
+                await updateSimulation(db, {
+                  id,
                   status: 'completed',
                   progress: 100,
                   result: jsonData.result
@@ -323,7 +327,8 @@ export default function SimulationPage() {
                   retryQueue.push(id);
                 } else {
                   // Mark as failed for any other error
-                  await updateSimulation(id, {
+                  await updateSimulation(db, {
+                    id,
                     status: 'error',
                     error: jsonData.error || jsonData.detail || 'Unknown error'
                   });
@@ -336,7 +341,8 @@ export default function SimulationPage() {
                   [id]: jsonData.progress
                 }));
                 // Update the simulation progress in the database
-                await updateSimulation(id, {
+                await updateSimulation(db, {
+                  id,
                   progress: jsonData.progress
                 });
               }
@@ -347,7 +353,8 @@ export default function SimulationPage() {
         }
       } catch (error) {
         // Mark as failed for any error during progress check
-        await updateSimulation(id, {
+        await updateSimulation(db, {
+          id,
           status: 'error',
           error: error instanceof Error ? error.message : 'Unknown error'
         });
@@ -382,7 +389,8 @@ export default function SimulationPage() {
         return updated;
       });
       // Add back to queued state
-      updateSimulation(id, {
+      updateSimulation(db, {
+        id,
         status: 'queued',
         progress: 0,
         result: undefined,
@@ -463,6 +471,7 @@ export default function SimulationPage() {
     // Process batch with rate limiting
     const size = Math.min(parseInt(batchSize), queuedSimulations.length);
     const delay = parseInt(batchDelay);
+    const db = await openDatabase();
     
     for (let i = 0; i < queuedSimulations.length; i += size) {
       const batch = queuedSimulations.slice(i, i + size);
@@ -495,7 +504,7 @@ export default function SimulationPage() {
               attempts: (simulation.attempts || 0) + 1
             };
 
-            await updateSimulation(simulation.id, updatedSimulation);
+            await updateSimulation(db, updatedSimulation);
             
             // Add to simulating simulations
             setSimulatingSimulations(prev => ({
@@ -516,7 +525,8 @@ export default function SimulationPage() {
 
             addLog('success', `Simulation ${simulation.id} submitted successfully`);
           } else {
-            await updateSimulation(simulation.id, {
+            await updateSimulation(db, {
+              id: simulation.id,
               status: 'error',
               error: result.message || 'Failed to submit simulation'
             });
@@ -527,7 +537,8 @@ export default function SimulationPage() {
           await new Promise(resolve => setTimeout(resolve, delay));
         } catch (error) {
           console.error('Error submitting simulation:', error);
-          await updateSimulation(simulation.id, {
+          await updateSimulation(db, {
+            id: simulation.id,
             status: 'error',
             error: error instanceof Error ? error.message : 'Failed to submit simulation'
           });
@@ -539,7 +550,9 @@ export default function SimulationPage() {
 
   const handleRequeue = async (simulation: Simulation) => {
     try {
-      await updateSimulation(simulation.id, {
+      const db = await openDatabase();
+      await updateSimulation(db, {
+        id: simulation.id,
         status: 'queued',
         progress: 0,
         result: undefined,
