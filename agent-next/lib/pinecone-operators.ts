@@ -18,6 +18,7 @@ export interface DataField {
   name: string;
   category: string;
   description?: string;
+  definition?: string;
   status: 'Pending' | 'In Progress' | 'Uploaded' | 'Error';
   lastUploaded: string | null;
   vectorCount: number;

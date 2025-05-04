@@ -1,46 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Pinecone } from '@pinecone-database/pinecone';
-import { generateRandomVector, formatMetadata, retryWithBackoff } from '@/lib/pinecone';
-
-// Initialize the Pinecone client
-const pc = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY || '',
-});
-
-// Get the index
-const index = pc.index(process.env.PINECONE_INDEX_NAME || 'worldquant-miner');
+import { pc, index, EmbeddingsResponse, DenseEmbedding } from '@/lib/pinecone';
+import { retryWithBackoff } from '@/lib/pinecone';
 
 // Base data field data
 const baseDataFields = [
   {
     id: 'df1',
-    name: 'Price Data',
-    category: 'Market Data',
-    description: 'Historical price data for various assets',
+    name: 'Price',
+    category: 'Market',
+    description: 'Stock price data',
     status: 'Pending',
     lastUploaded: null,
     vectorCount: 0,
-    namespace: 'data_fields'
+    namespace: 'data-fields'
   },
   {
     id: 'df2',
-    name: 'Volume Data',
-    category: 'Market Data',
-    description: 'Historical volume data for various assets',
+    name: 'Volume',
+    category: 'Market',
+    description: 'Trading volume data',
     status: 'Pending',
     lastUploaded: null,
     vectorCount: 0,
-    namespace: 'data_fields'
+    namespace: 'data-fields'
   },
   {
     id: 'df3',
-    name: 'Fundamental Data',
+    name: 'Market Cap',
     category: 'Fundamental',
-    description: 'Fundamental data for various assets',
+    description: 'Company market capitalization',
     status: 'Pending',
     lastUploaded: null,
     vectorCount: 0,
-    namespace: 'data_fields'
+    namespace: 'data-fields'
   }
 ];
 
@@ -85,36 +77,58 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { dataFieldId } = body;
+    const { dataFieldId, dataFieldInfo } = body;
 
     if (!dataFieldId) {
       return NextResponse.json({ success: false, error: 'Data field ID is required' }, { status: 400 });
     }
 
-    // Find the data field
-    const dataField = baseDataFields.find(df => df.id === dataFieldId);
-    if (!dataField) {
-      return NextResponse.json({ success: false, error: 'Data field not found' }, { status: 404 });
+    if (!dataFieldInfo) {
+      return NextResponse.json({ success: false, error: 'Data field information is required' }, { status: 400 });
     }
 
-    // Create mock vectors for demonstration
-    const mockVectors = Array.from({ length: 15 }, (_, i) => ({
-      id: `${dataFieldId}-${i}`,
-      values: generateRandomVector(1536),
-      metadata: formatMetadata({
-        name: dataField.name,
-        category: dataField.category,
-        description: dataField.description,
-        type: 'data_field'
-      })
-    }));
+    const { name, category, description } = dataFieldInfo;
+
+    if (!name || !category) {
+      return NextResponse.json({ success: false, error: 'Data field name and category are required' }, { status: 400 });
+    }
+
+    // Generate embeddings using Pinecone's inference API
+    const textToEmbed = `${name} ${category} ${description || ''}`;
+    const embeddings = await pc.inference.embed(
+      "multilingual-e5-large",
+      [textToEmbed],
+      {
+        input_type: "passage",
+        truncate: "END"
+      }
+    ) as unknown as EmbeddingsResponse;
+
+    // Create vectors with the generated embeddings
+    const vectors = [{
+      id: dataFieldId,
+      values: (embeddings.data[0] as any).values,
+      metadata: {
+        name: dataFieldInfo.name,
+        category: dataFieldInfo.category,
+        description: dataFieldInfo.description,
+        timestamp: new Date().toISOString()
+      }
+    }];
 
     // Upload the vectors to Pinecone
-    const result = await retryWithBackoff(() => index.namespace(dataField.namespace).upsert(mockVectors));
+    const result = await retryWithBackoff(
+      () => index.namespace('data-fields').upsert(vectors),
+      3, // maxRetries
+      1000 // initialDelay
+    );
     
     return NextResponse.json({ success: true, result });
   } catch (error) {
     console.error('Error uploading data field to Pinecone:', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Internal server error' 
+    }, { status: 500 });
   }
 } 

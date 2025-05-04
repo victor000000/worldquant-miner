@@ -58,77 +58,26 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ success: false, error: 'Data must be an array for upsert operation' }, { status: 400 });
         }
 
-        // Process vectors
-        const vectors = data.map(item => {
-          // If the data has the structure with count and results
-          if (item.count !== undefined && item.results !== undefined) {
-            // Transform the data to the format Pinecone expects
-            return item.results.map((result: any) => ({
-              id: result.id,
-              values: generateRandomVector(indexDimension),
-              metadata: formatMetadata({
-                description: result.description,
-                dataset: result.dataset,
-                category: result.category,
-                subcategory: result.subcategory,
-                region: result.region,
-                delay: result.delay,
-                universe: result.universe,
-                type: result.type,
-                coverage: result.coverage,
-                userCount: result.userCount,
-                alphaCount: result.alphaCount,
-                themes: result.themes
-              })
-            }));
-          } else {
-            // If the data is already in the correct format, check and adjust dimensions if needed
-            if (item.values && item.values.length !== indexDimension) {
-              console.log(`Adjusting vector dimension from ${item.values.length} to ${indexDimension}`);
-              // If the vector has more dimensions than the index, truncate it
-              if (item.values.length > indexDimension) {
-                return {
-                  ...item,
-                  values: item.values.slice(0, indexDimension),
-                  metadata: formatMetadata(item.metadata)
-                };
-              } 
-              // If the vector has fewer dimensions than the index, pad it with random values
-              else {
-                return {
-                  ...item,
-                  values: [...item.values, ...generateRandomVector(indexDimension - item.values.length)],
-                  metadata: formatMetadata(item.metadata)
-                };
-              }
-            }
-            return {
-              ...item,
-              metadata: formatMetadata(item.metadata)
-            };
-          }
-        }).flat();
-
         // Validate vectors
-        for (const vector of vectors) {
-          if (!validateVectorData(vector.values)) {
-            return NextResponse.json({ success: false, error: 'Invalid vector data' }, { status: 400 });
+        for (const vector of data) {
+          if (!vector.id) {
+            return NextResponse.json({ success: false, error: 'Each vector must have an id' }, { status: 400 });
           }
-          if (vector.metadata && !validateMetadata(vector.metadata)) {
-            return NextResponse.json({ success: false, error: 'Invalid metadata' }, { status: 400 });
+          if (!vector.values || !Array.isArray(vector.values)) {
+            return NextResponse.json({ success: false, error: 'Each vector must have a values array' }, { status: 400 });
+          }
+          if (vector.values.length !== indexDimension) {
+            return NextResponse.json({ 
+              success: false, 
+              error: `Vector dimension mismatch. Expected ${indexDimension}, got ${vector.values.length}` 
+            }, { status: 400 });
           }
         }
 
-        // Upsert vectors in chunks to avoid rate limits
-        const chunks = chunkArray(vectors, 100);
-        const results = [];
-
-        for (const chunk of chunks) {
-          const result = await retryWithBackoff(() => index.namespace(namespace).upsert(chunk));
-          results.push(result);
-        }
-
-        return NextResponse.json({ success: true, results });
+        // Upsert vectors to Pinecone
+        const result = await retryWithBackoff(() => index.namespace(namespace).upsert(data));
+        
+        return NextResponse.json({ success: true, result });
       }
 
       case 'query': {
@@ -204,10 +153,13 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        return NextResponse.json({ success: false, error: `Unsupported operation: ${operation}` }, { status: 400 });
+        return NextResponse.json({ success: false, error: 'Invalid operation' }, { status: 400 });
     }
   } catch (error) {
     console.error('Error processing Pinecone operation:', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Internal server error' 
+    }, { status: 500 });
   }
 } 

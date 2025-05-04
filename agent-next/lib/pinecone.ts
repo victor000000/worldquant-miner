@@ -1,5 +1,37 @@
 // Utility functions for Pinecone operations
 
+import { Pinecone } from '@pinecone-database/pinecone';
+
+// Initialize the Pinecone client
+const pc = new Pinecone({
+  apiKey: process.env.PINECONE_API_KEY || '',
+});
+
+// Get the index
+const index = pc.index(process.env.PINECONE_INDEX_NAME || 'worldquant-miner');
+
+// Type definitions for Pinecone inference API
+export interface DenseEmbedding {
+  vectorType: "dense";
+  embedding: number[];
+}
+
+export interface SparseEmbedding {
+  vectorType: "sparse";
+  indices: number[];
+  values: number[];
+}
+
+export type Embedding = DenseEmbedding | SparseEmbedding;
+
+export interface EmbeddingsResponse {
+  data: Embedding[];
+  model: string;
+  usage: {
+    total_tokens: number;
+  };
+}
+
 // Function to generate a random vector for testing
 export function generateRandomVector(dimension: number): number[] {
   return Array.from({ length: dimension }, () => (Math.random() * 2) - 1);
@@ -72,36 +104,27 @@ export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Function to retry an operation with exponential backoff
+// Retry function with exponential backoff
 export async function retryWithBackoff<T>(
   operation: () => Promise<T>,
   maxRetries: number = 3,
-  baseDelay: number = 1000
+  initialDelay: number = 1000
 ): Promise<T> {
   let retries = 0;
-  
+  let delay = initialDelay;
+
   while (true) {
     try {
       return await operation();
     } catch (error) {
       retries++;
-      
       if (retries >= maxRetries) {
         throw error;
       }
-      
-      const delay = baseDelay * Math.pow(2, retries - 1);
-      await sleep(delay);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
     }
   }
 }
 
-export default {
-  generateRandomVector,
-  formatMetadata,
-  validateVectorData,
-  validateMetadata,
-  chunkArray,
-  sleep,
-  retryWithBackoff
-}; 
+export { pc, index }; 
