@@ -238,6 +238,47 @@ class MultiArmBandit:
         else:
             return "exploit", best_arm
     
+    def choose_action_weighted(self, available_arms: List[str], performance_weights: List[float] = None) -> Tuple[str, str]:
+        """
+        Choose action using weighted selection based on performance
+        Best performing templates have higher chance but not 100%
+        """
+        if not available_arms:
+            return "explore", "new_template"
+        
+        # Add any new arms
+        for arm in available_arms:
+            self.add_arm(arm)
+        
+        # If no performance weights provided, use average rewards as weights
+        if performance_weights is None:
+            weights = []
+            for arm_id in available_arms:
+                stats = self.arm_stats[arm_id]
+                # Use average reward as weight, with minimum weight of 0.1
+                weight = max(stats['avg_reward'], 0.1)
+                weights.append(weight)
+        else:
+            weights = performance_weights
+        
+        # Normalize weights to probabilities
+        total_weight = sum(weights)
+        if total_weight == 0:
+            # If all weights are 0, use uniform selection
+            probabilities = [1.0 / len(available_arms)] * len(available_arms)
+        else:
+            probabilities = [w / total_weight for w in weights]
+        
+        # Weighted random selection
+        selected_idx = random.choices(range(len(available_arms)), weights=probabilities)[0]
+        selected_arm = available_arms[selected_idx]
+        
+        # Decide explore vs exploit based on exploration rate
+        if random.random() < self.exploration_rate:
+            return "explore", "new_template"
+        else:
+            return "exploit", selected_arm
+    
     def get_arm_performance(self, arm_id: str) -> Dict:
         """Get performance statistics for an arm"""
         if arm_id not in self.arm_stats:
@@ -386,6 +427,8 @@ class EnhancedTemplateGeneratorV2:
         # TRUE CONCURRENT execution using ThreadPoolExecutor
         self.executor = ThreadPoolExecutor(max_workers=self.max_concurrent)
         self.active_futures = {}  # Track active Future objects
+        self.future_start_times = {}  # Track when futures were started
+        self.future_timeout = 300  # 5 minutes timeout for hanging futures
         self.completed_count = 0
         self.successful_count = 0
         self.failed_count = 0
@@ -403,8 +446,8 @@ class EnhancedTemplateGeneratorV2:
         
         # Three-phase system tracking
         self.total_simulations = 0
-        self.phase_switch_threshold = 300
-        self.exploitation_end_threshold = 1300  # 300 + 1000 exploitation
+        self.phase_switch_threshold = 100  # Switch to exploitation after 100 successful simulations
+        self.exploitation_end_threshold = 300  # 100 + 200 exploitation
         self.current_phase = "explore_exploit"  # "explore_exploit", "exploit", "loop"
         self.exploitation_phase = False
         self.top_templates = []  # Track top-performing templates for exploitation
@@ -937,22 +980,22 @@ Reasoning for each improvement:
         """Update simulation count and check for phase switches"""
         self.total_simulations += 1
         
-        # Phase 1 to Phase 2: Switch to exploitation at 300 simulations
+        # Phase 1 to Phase 2: Switch to exploitation at 100 successful simulations
         if (self.current_phase == "explore_exploit" and 
             self.total_simulations >= self.phase_switch_threshold):
             self.current_phase = "exploit"
             self.exploitation_phase = True
             self._initialize_exploitation_phase()
-            logger.info(f"🔄 PHASE SWITCH: Switching to pure exploitation mode after {self.total_simulations} simulations")
+            logger.info(f"🔄 PHASE SWITCH: Switching to pure exploitation mode after {self.total_simulations} successful simulations")
             logger.info(f"🎯 EXPLOITATION PHASE: Will now use top-performing templates with dataset substitution across regions")
         
-        # Phase 2 to Phase 3: Switch back to explore/exploit at 1300 simulations
+        # Phase 2 to Phase 3: Switch back to explore/exploit at 300 total simulations (100 + 200)
         elif (self.current_phase == "exploit" and 
               self.total_simulations >= self.exploitation_end_threshold):
             self.current_phase = "loop"
             self.exploitation_phase = False
             self.loop_count += 1
-            logger.info(f"🔄 PHASE SWITCH: Switching back to explore/exploit mode after {self.total_simulations} simulations")
+            logger.info(f"🔄 PHASE SWITCH: Switching back to explore/exploit mode after {self.total_simulations} total simulations")
             logger.info(f"🔄 LOOP PHASE: Loop #{self.loop_count} - Resuming normal explore/exploit with new discoveries")
             
             # Reset for new loop
@@ -972,7 +1015,7 @@ Reasoning for each improvement:
         self.total_simulations = 0
         
         logger.info(f"🔄 LOOP RESET: Starting new explore/exploit cycle (Loop #{self.loop_count})")
-        logger.info(f"📊 New cycle will run: 0-300 explore/exploit, 300-1300 exploit, then loop again")
+        logger.info(f"📊 New cycle will run: 0-100 explore/exploit, 100-300 exploit, then loop again")
     
     def _initialize_exploitation_phase(self):
         """Initialize exploitation phase with top templates"""
@@ -1005,29 +1048,78 @@ Reasoning for each improvement:
             logger.info(f"📈 Phase status: {self.current_phase} | Simulations: {self.total_simulations} | Loop: #{self.loop_count}")
     
     def get_exploitation_template(self) -> Dict:
-        """Get a template for exploitation phase with dataset substitution"""
+        """Get a template for exploitation phase with dataset substitution.
+        Only considers templates with Sharpe > 1.25, Fitness > 1.0, Margin > 5bps."""
         if not self.top_templates:
             logger.warning("No top templates available for exploitation")
             return None
         
-        # Select template using exploitation bandit
-        template_ids = [f"template_{i}" for i in range(len(self.top_templates))]
-        action, selected_id = self.exploitation_bandit.choose_action(template_ids)
+        # Filter templates that meet the high performance criteria
+        qualifying_templates = []
+        qualifying_indices = []
+        
+        for i, template in enumerate(self.top_templates):
+            sharpe = template.get('sharpe', 0)
+            fitness = template.get('fitness', 0)
+            margin = template.get('margin', 0)
+            
+            # Only consider templates that meet the high bar
+            if (sharpe > 1.25 and fitness > 1.0 and margin > 0.05):
+                qualifying_templates.append(template)
+                qualifying_indices.append(i)
+        
+        if not qualifying_templates:
+            logger.warning(f"⚠️ No templates meet exploitation criteria (Sharpe > 1.25, Fitness > 1.0, Margin > 5bps)")
+            logger.info(f"📊 Available templates: {len(self.top_templates)}")
+            for i, template in enumerate(self.top_templates[:3]):  # Show first 3 for debugging
+                logger.info(f"   Template {i+1}: Sharpe={template.get('sharpe', 0):.3f}, Fitness={template.get('fitness', 0):.3f}, Margin={template.get('margin', 0):.3f}")
+            return None
+        
+        logger.info(f"🎯 EXPLOITATION: {len(qualifying_templates)}/{len(self.top_templates)} templates meet high performance criteria")
+        
+        # Create template IDs and weights for qualifying templates only
+        template_ids = [f"template_{qualifying_indices[i]}" for i in range(len(qualifying_templates))]
+        
+        # Create performance weights based on Sharpe ratios for qualifying templates
+        performance_weights = []
+        for template in qualifying_templates:
+            # Use Sharpe ratio as the weight (higher Sharpe = higher weight)
+            weight = max(template.get('sharpe', 0), 0.1)  # Minimum weight of 0.1
+            performance_weights.append(weight)
+        
+        action, selected_id = self.exploitation_bandit.choose_action_weighted(template_ids, performance_weights)
         
         template_idx = int(selected_id.split('_')[1])
         selected_template = self.top_templates[template_idx]
+        
+        # Log the performance metrics of the selected template
+        logger.info(f"🎯 EXPLOITATION: Selected template {template_idx} with Sharpe={selected_template.get('sharpe', 0):.3f}, Fitness={selected_template.get('fitness', 0):.3f}, Margin={selected_template.get('margin', 0):.3f}")
         
         # Choose a different region for dataset substitution
         original_region = selected_template['region']
         available_regions = [r for r in self.regions if r != original_region]
         target_region = random.choice(available_regions)
         
+        # Get data fields for the target region and shuffle them
+        target_config = self.region_configs[target_region]
+        optimal_delay = self.select_optimal_delay(target_region)
+        data_fields = self.get_data_fields_for_region(target_region, optimal_delay)
+        
+        if data_fields:
+            # Shuffle data fields to ensure different combinations
+            shuffled_fields = random.sample(data_fields, len(data_fields))
+            logger.info(f"🎯 EXPLOITATION: Using shuffled data fields for {target_region} (delay={optimal_delay})")
+            logger.info(f"🎯 EXPLOITATION: Shuffled {len(shuffled_fields)} fields for template generation")
+        else:
+            logger.warning(f"🎯 EXPLOITATION: No data fields found for {target_region}")
+        
         return {
             'template': selected_template['template'],
             'original_region': original_region,
             'target_region': target_region,
             'original_sharpe': selected_template['sharpe'],
-            'original_margin': selected_template['margin']
+            'original_margin': selected_template['margin'],
+            'shuffled_fields': shuffled_fields if data_fields else []
         }
     
     def create_exploitation_templates(self, num_templates: int = 10) -> List[Dict]:
@@ -1382,7 +1474,7 @@ Reasoning for each improvement:
         logger.info(f"Available fields for {region} (delay={optimal_delay}): {len(valid_fields)} fields")
         logger.info(f"Sample fields: {valid_fields[:5]}")
         
-        # Generate random number of operators (1-6) for higher margin chances
+        # Generate random number of operators (1-6) or unlimited for higher margin chances
         # Special case: EUR region has no operator or field limits
         if region == "EUR":
             max_operators = len(self.operators)  # Use all operators for EUR
@@ -1390,10 +1482,21 @@ Reasoning for each improvement:
             selected_fields = data_fields  # Use all available data fields
             logger.info(f"EUR region: Using ALL {len(selected_operators)} operators and {len(selected_fields)} fields (no limits)")
         else:
-            max_operators = random.randint(1, 6)
-            selected_operators = random.sample(self.operators, min(max_operators, len(self.operators)))
-            selected_fields = data_fields  # Use all available data fields
-            logger.info(f"Selected {len(selected_operators)} operators (max: {max_operators}) and {len(selected_fields)} fields for template generation")
+            # Randomly choose between limited (1-6) or unlimited operators
+            use_unlimited = random.choice([True, False])  # 50% chance for unlimited
+            
+            if use_unlimited:
+                max_operators = len(self.operators)  # Use all operators
+                selected_operators = self.operators  # Use all operators
+                logger.info(f"UNLIMITED operators: Using ALL {len(selected_operators)} operators for template generation")
+            else:
+                max_operators = random.randint(1, 6)
+                selected_operators = random.sample(self.operators, min(max_operators, len(self.operators)))
+                logger.info(f"LIMITED operators: Selected {len(selected_operators)} operators (max: {max_operators}) for template generation")
+            
+            # Shuffle data fields to explore different combinations
+            selected_fields = random.sample(data_fields, len(data_fields))  # Shuffle all fields
+            logger.info(f"Using {len(selected_fields)} fields for template generation")
         
         # Create prompt for DeepSeek with better instructions
         operators_desc = []
@@ -1426,10 +1529,17 @@ Reasoning for each improvement:
             field_instruction = "Available Data Fields (USE ANY COMBINATION - NO LIMITS - These are the EXACT field names available for delay={optimal_delay}):"
             requirement_15 = "15. EUR REGION: Use any number of operators and data fields for maximum complexity and potential"
         else:
-            complexity_constraints = f"TEMPLATE COMPLEXITY CONSTRAINTS:\n- Maximum {max_operators} operators per template (for higher margin chances)"
-            operator_instruction = f"Available Operators (USE ONLY THESE - MAX {max_operators} PER TEMPLATE):"
+            # Check if we're using unlimited operators
+            if max_operators == len(self.operators):
+                complexity_constraints = "TEMPLATE COMPLEXITY: UNLIMITED OPERATORS - Use any number of operators for maximum complexity and potential"
+                operator_instruction = "Available Operators (USE ANY COMBINATION - NO LIMITS):"
+                requirement_15 = "15. UNLIMITED OPERATORS: Use any number of operators for maximum complexity and potential"
+            else:
+                complexity_constraints = f"TEMPLATE COMPLEXITY CONSTRAINTS:\n- Maximum {max_operators} operators per template (for higher margin chances)"
+                operator_instruction = f"Available Operators (USE ONLY THESE - MAX {max_operators} PER TEMPLATE):"
+                requirement_15 = f"15. KEEP TEMPLATES SIMPLE: Use maximum {max_operators} operators per template"
+            
             field_instruction = f"Available Data Fields (USE ONLY THESE - These are the EXACT field names available for delay={optimal_delay}):"
-            requirement_15 = f"15. KEEP TEMPLATES SIMPLE: Use maximum {max_operators} operators per template"
 
         prompt = f"""Generate {num_templates} diverse and creative WorldQuant Brain alpha expression templates for the {region} region.
 
@@ -1999,6 +2109,23 @@ Generate {num_templates} templates:"""
                 # Process completed futures
                 self._process_completed_futures()
                 
+                # Check future health every iteration
+                healthy, slow, stuck = self._check_future_health()
+                if stuck > 0:
+                    logger.warning(f"🚨 CRITICAL: {stuck} futures are stuck! Consider restarting if this persists.")
+                
+                # Show detailed status of all futures every iteration
+                self._show_all_futures_status()
+                
+                # Check executor health if there are stuck futures
+                if stuck > 0:
+                    self._check_executor_health()
+                
+                # Force cleanup if too many futures are stuck
+                if stuck >= 3:
+                    logger.warning(f"🚨 FORCE CLEANUP: {stuck} futures stuck, forcing cleanup...")
+                    self._force_cleanup_stuck_futures()
+                
                 # Fill available slots with new concurrent tasks
                 self._fill_available_slots_concurrent()
                 
@@ -2075,6 +2202,11 @@ Generate {num_templates} templates:"""
         data_fields = self.get_data_fields_for_region(region, delay)
         if not data_fields:
             return []
+        
+        # During exploitation phase, shuffle data fields to ensure different combinations
+        if self.exploitation_phase:
+            data_fields = random.sample(data_fields, len(data_fields))
+            logger.info(f"🎯 EXPLOITATION: Shuffled {len(data_fields)} data fields for {region}")
         
         # Extract the base template structure
         base_code = base_template['template']
@@ -2237,20 +2369,36 @@ Generate {num_templates} templates:"""
         hopeful_conditions = []
         
         # Sharpe ratio: negative but absolute value > 0.5
+        # EXCEPTION: For CHN region, negative Sharpe values are NOT considered hopeful
         if result.sharpe < 0 and abs(result.sharpe) > 1.25:
-            hopeful_conditions.append(f"Sharpe={result.sharpe:.3f} (abs={abs(result.sharpe):.3f})")
+            if result.region != "CHN":
+                hopeful_conditions.append(f"Sharpe={result.sharpe:.3f} (abs={abs(result.sharpe):.3f})")
+            else:
+                logger.info(f"🚫 CHN region: Negative Sharpe {result.sharpe:.3f} NOT considered hopeful")
         
         # Fitness: negative but absolute value > 0.3
+        # EXCEPTION: For CHN region, negative Fitness values are NOT considered hopeful
         if result.fitness < 0 and abs(result.fitness) > 1:
-            hopeful_conditions.append(f"Fitness={result.fitness:.3f} (abs={abs(result.fitness):.3f})")
+            if result.region != "CHN":
+                hopeful_conditions.append(f"Fitness={result.fitness:.3f} (abs={abs(result.fitness):.3f})")
+            else:
+                logger.info(f"🚫 CHN region: Negative Fitness {result.fitness:.3f} NOT considered hopeful")
         
         # Returns: negative but absolute value > 0.1
+        # EXCEPTION: For CHN region, negative Returns values are NOT considered hopeful
         if result.returns < 0 and abs(result.returns) > 0.2:
-            hopeful_conditions.append(f"Returns={result.returns:.3f} (abs={abs(result.returns):.3f})")
+            if result.region != "CHN":
+                hopeful_conditions.append(f"Returns={result.returns:.3f} (abs={abs(result.returns):.3f})")
+            else:
+                logger.info(f"🚫 CHN region: Negative Returns {result.returns:.3f} NOT considered hopeful")
         
         # Margin: negative but absolute value > 0.002 (20bps)
+        # EXCEPTION: For CHN region, negative Margin values are NOT considered hopeful
         if result.margin < 0 and abs(result.margin) > 0.002:
-            hopeful_conditions.append(f"Margin={result.margin:.4f} (abs={abs(result.margin):.4f})")
+            if result.region != "CHN":
+                hopeful_conditions.append(f"Margin={result.margin:.4f} (abs={abs(result.margin):.4f})")
+            else:
+                logger.info(f"🚫 CHN region: Negative Margin {result.margin:.4f} NOT considered hopeful")
         
         if hopeful_conditions:
             logger.info(f"🎯 HOPEFUL ALPHA detected: {', '.join(hopeful_conditions)}")
@@ -2524,30 +2672,34 @@ Generate {num_templates} templates:"""
         """
         Calculate a suspicion score (0.0 to 1.0) based on how 'too good to be true' the metrics are
         Higher scores indicate higher probability of flatlined PnL
+        Handles both positive and negative values with high absolute values
         """
         suspicion_score = 0.0
         suspicious_factors = []
         
-        # Fitness suspicion (0.0 to 0.4)
-        if fitness > 0.5:  # Start getting suspicious at 0.5
-            fitness_suspicion = min(0.4, (fitness - 0.5) / 2.0)  # Max 0.4 at fitness 1.3+
+        # Fitness suspicion (0.0 to 0.4) - handles both positive and negative
+        fitness_abs = abs(fitness)
+        if fitness_abs > 0.5:  # Start getting suspicious at 0.5 absolute value
+            fitness_suspicion = min(0.4, (fitness_abs - 0.5) / 2.0)  # Max 0.4 at fitness 1.3+
             suspicion_score += fitness_suspicion
-            if fitness > 1.0:
-                suspicious_factors.append(f"Fitness={fitness:.3f}")
+            if fitness_abs > 1.0:
+                suspicious_factors.append(f"Fitness={fitness:.3f} (abs={fitness_abs:.3f})")
         
-        # Sharpe suspicion (0.0 to 0.4)
-        if sharpe > 1.0:  # Start getting suspicious at 1.0
-            sharpe_suspicion = min(0.4, (sharpe - 1.0) / 3.0)  # Max 0.4 at sharpe 2.2+
+        # Sharpe suspicion (0.0 to 0.4) - handles both positive and negative
+        sharpe_abs = abs(sharpe)
+        if sharpe_abs > 1.0:  # Start getting suspicious at 1.0 absolute value
+            sharpe_suspicion = min(0.4, (sharpe_abs - 1.0) / 3.0)  # Max 0.4 at sharpe 2.2+
             suspicion_score += sharpe_suspicion
-            if sharpe > 1.5:
-                suspicious_factors.append(f"Sharpe={sharpe:.3f}")
+            if sharpe_abs > 1.5:
+                suspicious_factors.append(f"Sharpe={sharpe:.3f} (abs={sharpe_abs:.3f})")
         
-        # Margin suspicion (0.0 to 0.2)
-        if margin > 0.01:  # Start getting suspicious at 1%
-            margin_suspicion = min(0.2, (margin - 0.01) / 0.04)  # Max 0.2 at margin 3%+
+        # Margin suspicion (0.0 to 0.2) - handles both positive and negative
+        margin_abs = abs(margin)
+        if margin_abs > 0.01:  # Start getting suspicious at 1% absolute value
+            margin_suspicion = min(0.2, (margin_abs - 0.01) / 0.04)  # Max 0.2 at margin 3%+
             suspicion_score += margin_suspicion
-            if margin > 0.02:
-                suspicious_factors.append(f"Margin={margin:.4f}")
+            if margin_abs > 0.02:
+                suspicious_factors.append(f"Margin={margin:.4f} (abs={margin_abs:.4f})")
         
         # Cap at 1.0
         suspicion_score = min(1.0, suspicion_score)
@@ -2811,10 +2963,21 @@ Generate {num_templates} templates:"""
         return filtered_templates
     
     def _process_completed_futures(self):
-        """Process completed futures and update bandit"""
+        """Process completed futures and update bandit with timeout handling"""
         completed_futures = []
+        timed_out_futures = []
+        current_time = time.time()
         
         for future_id, future in self.active_futures.items():
+            # Check for timeout
+            start_time = self.future_start_times.get(future_id, current_time)
+            elapsed_time = current_time - start_time
+            
+            if elapsed_time > self.future_timeout:
+                timed_out_futures.append(future_id)
+                logger.warning(f"⏰ TIMEOUT: Future {future_id} has been running for {elapsed_time:.1f}s (timeout: {self.future_timeout}s)")
+                continue
+            
             if future.done():
                 completed_futures.append(future_id)
                 try:
@@ -2824,6 +2987,9 @@ Generate {num_templates} templates:"""
                         self._update_bandit_with_result(result)
                         self._add_to_results(result)
                         logger.info(f"✅ CONCURRENT simulation SUCCESS: {result.template[:50]}... (Sharpe: {result.sharpe:.3f})")
+                        
+                        # Update simulation count and check for phase switch
+                        self.update_simulation_count()
                     elif result and not result.success:
                         self.failed_count += 1
                         error_msg = getattr(result, 'error_message', 'Simulation failed')
@@ -2839,7 +3005,310 @@ Generate {num_templates} templates:"""
         # Remove completed futures
         for future_id in completed_futures:
             del self.active_futures[future_id]
+            if future_id in self.future_start_times:
+                del self.future_start_times[future_id]
             self.completed_count += 1
+        
+        # Handle timed out futures and immediately start new ones
+        for future_id in timed_out_futures:
+            logger.warning(f"🔄 CANCELLING timed out future: {future_id}")
+            try:
+                future = self.active_futures[future_id]
+                future.cancel()  # Try to cancel the future
+            except Exception as e:
+                logger.error(f"Error cancelling future {future_id}: {e}")
+            
+            # Remove from tracking
+            del self.active_futures[future_id]
+            if future_id in self.future_start_times:
+                del self.future_start_times[future_id]
+            self.failed_count += 1
+            self.completed_count += 1
+            
+            # Immediately start a new future to replace the timed-out one using normal flow
+            logger.info(f"🔄 RESTARTING: Starting new future to replace timed-out {future_id}")
+            logger.info(f"🔄 RESTART: Using normal flow to start replacement future")
+            
+            # Use normal flow to fill the slot
+            self._fill_available_slots_concurrent()
+            
+            # Log current active futures status
+            logger.info(f"📊 RESTART STATUS: {len(self.active_futures)} futures now active after restart")
+        
+        # Log health status
+        if len(timed_out_futures) > 0:
+            logger.warning(f"⚠️ HEALTH WARNING: {len(timed_out_futures)} futures timed out, {len(self.active_futures)} still active")
+        elif len(self.active_futures) > 0:
+            logger.info(f"📊 HEALTH: {len(self.active_futures)} futures active, {len(completed_futures)} completed this cycle")
+    
+    def _start_new_future(self):
+        """Start a new future to replace a timed-out one"""
+        try:
+            # Get next action from smart plan
+            plan_type = self.slot_plans[self.slot_plan_index % len(self.slot_plans)]
+            self.slot_plan_index += 1
+            
+            if plan_type == 'explore':
+                # Explore: generate new template and simulate CONCURRENTLY
+                logger.info(f"🔄 RESTART: Starting explore task for restart future")
+                future = self.executor.submit(self._explore_and_simulate_concurrent)
+                future_id = f"explore_restart_{int(time.time() * 1000)}"
+                self.active_futures[future_id] = future
+                self.future_start_times[future_id] = time.time()
+                logger.info(f"🚀 Started NEW CONCURRENT EXPLORE task: {future_id}")
+                logger.info(f"🔍 NEW FUTURE: Will generate new template and simulate it")
+                logger.info(f"⏰ NEW FUTURE: Started at {time.strftime('%H:%M:%S')} - will timeout after {self.future_timeout}s")
+                logger.info(f"🔄 RESTART: Future {future_id} submitted to executor")
+            
+            elif plan_type == 'exploit':
+                # Exploit: try to use existing successful template
+                successful_templates = self._get_successful_templates()
+                if successful_templates:
+                    # Check if we're in exploitation phase - use weighted selection
+                    if self.exploitation_phase and self.top_templates:
+                        # Use exploitation phase logic with weighted selection
+                        exploitation_data = self.get_exploitation_template()
+                        if exploitation_data:
+                            # Create template dict for exploitation
+                            best_template = {
+                                'template': exploitation_data['template'],
+                                'region': exploitation_data['target_region'],
+                                'sharpe': exploitation_data['original_sharpe'],
+                                'margin': exploitation_data['original_margin']
+                            }
+                            logger.info(f"🎯 EXPLOITATION RESTART: Using weighted selection with Sharpe={best_template.get('sharpe', 0):.3f}")
+                        else:
+                            # Fallback to best template if exploitation fails
+                            best_template = max(successful_templates, key=lambda x: x.get('sharpe', 0))
+                            logger.info(f"🎯 EXPLOIT RESTART: Fallback to best template with Sharpe={best_template.get('sharpe', 0):.3f}")
+                    else:
+                        # Filter for elite templates that meet high performance criteria
+                        elite_templates = []
+                        for template in successful_templates:
+                            sharpe = template.get('sharpe', 0)
+                            fitness = template.get('fitness', 0)
+                            margin = template.get('margin', 0)
+                            
+                            # Only consider templates that meet the high bar
+                            if (sharpe > 1.25 and fitness > 1.0 and margin > 0.05):
+                                elite_templates.append(template)
+                        
+                        if elite_templates:
+                            logger.info(f"🎯 EXPLOIT RESTART: {len(elite_templates)}/{len(successful_templates)} templates meet elite criteria")
+                            
+                            # Use weighted selection among elite templates
+                            performance_weights = []
+                            for template in elite_templates:
+                                # Use Sharpe ratio as the weight (higher Sharpe = higher weight)
+                                weight = max(template.get('sharpe', 0), 0.1)  # Minimum weight of 0.1
+                                performance_weights.append(weight)
+                            
+                            # Weighted random selection
+                            total_weight = sum(performance_weights)
+                            probabilities = [w / total_weight for w in performance_weights]
+                            selected_idx = random.choices(range(len(elite_templates)), weights=probabilities)[0]
+                            best_template = elite_templates[selected_idx]
+                            
+                            logger.info(f"🎯 EXPLOIT RESTART: Using elite template with Sharpe={best_template.get('sharpe', 0):.3f}, Fitness={best_template.get('fitness', 0):.3f}, Margin={best_template.get('margin', 0):.3f} (weight={probabilities[selected_idx]:.3f})")
+                        else:
+                            # No elite templates available, fallback to EXPLORE mode
+                            logger.warning(f"🎯 EXPLOIT RESTART: No elite templates found, falling back to EXPLORE mode")
+                            logger.info(f"📊 Available templates: {len(successful_templates)}")
+                            for i, template in enumerate(successful_templates[:3]):  # Show first 3 for debugging
+                                logger.info(f"   Template {i+1}: Sharpe={template.get('sharpe', 0):.3f}, Fitness={template.get('fitness', 0):.3f}, Margin={template.get('margin', 0):.3f}")
+                            
+                            # Fallback to explore mode instead of using mediocre templates
+                            logger.info(f"🔄 FALLBACK: Switching to EXPLORE mode due to no elite templates")
+                            future = self.executor.submit(self._explore_and_simulate_concurrent)
+                            future_id = f"explore_restart_{int(time.time() * 1000)}"
+                            self.active_futures[future_id] = future
+                            self.future_start_times[future_id] = time.time()
+                            logger.info(f"🚀 Started CONCURRENT EXPLORE RESTART task: {future_id}")
+                            logger.info(f"🎯 NEW FUTURE: Will explore new templates in region {random.choice(self.regions)}")
+                            logger.info(f"⏰ NEW FUTURE: Started at {time.strftime('%H:%M:%S')} - will timeout after {self.future_timeout}s")
+                            logger.info(f"🔄 RESTART: Future {future_id} submitted to executor")
+                            return
+                    
+                    logger.info(f"🔄 RESTART: Starting exploit task for restart future")
+                    future = self.executor.submit(self._exploit_and_simulate_concurrent, best_template)
+                    future_id = f"exploit_restart_{int(time.time() * 1000)}"
+                    self.active_futures[future_id] = future
+                    self.future_start_times[future_id] = time.time()
+                    logger.info(f"🚀 Started NEW CONCURRENT EXPLOIT task: {future_id}")
+                    logger.info(f"🎯 NEW FUTURE: Will exploit template with Sharpe={best_template.get('sharpe', 0):.3f} in region {best_template.get('region', 'Unknown')}")
+                    logger.info(f"⏰ NEW FUTURE: Started at {time.strftime('%H:%M:%S')} - will timeout after {self.future_timeout}s")
+                    logger.info(f"🔄 RESTART: Future {future_id} submitted to executor")
+                else:
+                    # No successful templates yet, fallback to explore
+                    logger.info(f"🎯 EXPLOIT RESTART: No successful templates found, falling back to EXPLORE")
+                    logger.info(f"🔄 RESTART: Starting fallback explore task for restart future")
+                    future = self.executor.submit(self._explore_and_simulate_concurrent)
+                    future_id = f"explore_restart_fallback_{int(time.time() * 1000)}"
+                    self.active_futures[future_id] = future
+                    self.future_start_times[future_id] = time.time()
+                    logger.info(f"🚀 Started NEW CONCURRENT EXPLORE (fallback) task: {future_id}")
+                    logger.info(f"🔍 NEW FUTURE: Will generate new template and simulate it (fallback)")
+                    logger.info(f"⏰ NEW FUTURE: Started at {time.strftime('%H:%M:%S')} - will timeout after {self.future_timeout}s")
+                    logger.info(f"🔄 RESTART: Future {future_id} submitted to executor")
+        
+        except Exception as e:
+            logger.error(f"❌ Error starting new future: {e}")
+            # If we can't start a new future, at least log the issue
+            logger.warning(f"⚠️ Could not start replacement future, will retry in next iteration")
+    
+    def _check_future_health(self):
+        """Check the health of active futures and log detailed status"""
+        current_time = time.time()
+        healthy_futures = 0
+        slow_futures = 0
+        stuck_futures = 0
+        restart_futures = 0
+        
+        for future_id, future in self.active_futures.items():
+            start_time = self.future_start_times.get(future_id, current_time)
+            elapsed_time = current_time - start_time
+            
+            # Check if this is a restart future
+            is_restart = 'restart' in future_id
+            
+            if elapsed_time < 60:  # Less than 1 minute
+                healthy_futures += 1
+                if is_restart:
+                    restart_futures += 1
+            elif elapsed_time < 180:  # 1-3 minutes
+                slow_futures += 1
+                if is_restart:
+                    logger.warning(f"⚠️ RESTART FUTURE SLOW: {future_id} running for {elapsed_time:.1f}s")
+            else:  # More than 3 minutes
+                stuck_futures += 1
+                if is_restart:
+                    logger.warning(f"🚨 RESTART FUTURE STUCK: {future_id} running for {elapsed_time:.1f}s")
+        
+        if stuck_futures > 0:
+            logger.warning(f"🚨 HEALTH ALERT: {stuck_futures} futures stuck (>3min), {slow_futures} slow (1-3min), {healthy_futures} healthy (<1min)")
+            if restart_futures > 0:
+                logger.warning(f"🔄 RESTART STATUS: {restart_futures} restart futures active")
+        elif slow_futures > 0:
+            logger.info(f"⚠️ HEALTH: {slow_futures} futures slow (1-3min), {healthy_futures} healthy (<1min)")
+            if restart_futures > 0:
+                logger.info(f"🔄 RESTART STATUS: {restart_futures} restart futures active")
+        else:
+            logger.info(f"✅ HEALTH: All {healthy_futures} futures healthy (<1min)")
+            if restart_futures > 0:
+                logger.info(f"🔄 RESTART STATUS: {restart_futures} restart futures active")
+        
+        return healthy_futures, slow_futures, stuck_futures
+    
+    def _check_restart_futures_status(self):
+        """Check and log the status of restart futures specifically"""
+        current_time = time.time()
+        restart_futures = []
+        
+        for future_id, future in self.active_futures.items():
+            if 'restart' in future_id:
+                start_time = self.future_start_times.get(future_id, current_time)
+                elapsed_time = current_time - start_time
+                restart_futures.append((future_id, elapsed_time, future))
+        
+        if restart_futures:
+            logger.info(f"🔄 RESTART FUTURES STATUS: {len(restart_futures)} restart futures active")
+            for future_id, elapsed_time, future in restart_futures:
+                status = "healthy" if elapsed_time < 60 else "slow" if elapsed_time < 180 else "stuck"
+                future_status = "running" if not future.done() else "completed"
+                logger.info(f"  - {future_id}: {elapsed_time:.1f}s ({status}, {future_status})")
+                
+                # Show warning if restart future is getting close to timeout
+                if elapsed_time > (self.future_timeout * 0.8):  # 80% of timeout
+                    remaining = self.future_timeout - elapsed_time
+                    logger.warning(f"    ⚠️ {future_id} approaching timeout in {remaining:.1f}s")
+        
+        return len(restart_futures)
+    
+    def _check_executor_health(self):
+        """Check if the executor is healthy and responsive"""
+        try:
+            # Try to get executor info
+            if hasattr(self.executor, '_threads'):
+                active_threads = len([t for t in self.executor._threads if t.is_alive()])
+                logger.info(f"🔧 EXECUTOR HEALTH: {active_threads} active threads")
+            else:
+                logger.info(f"🔧 EXECUTOR HEALTH: ThreadPoolExecutor active")
+            
+            # Check if executor is accepting new tasks
+            if hasattr(self.executor, '_work_queue'):
+                queue_size = self.executor._work_queue.qsize()
+                logger.info(f"🔧 EXECUTOR QUEUE: {queue_size} tasks in queue")
+            
+            return True
+        except Exception as e:
+            logger.error(f"❌ EXECUTOR HEALTH CHECK FAILED: {e}")
+            return False
+    
+    def _show_all_futures_status(self):
+        """Show detailed status of all active futures"""
+        current_time = time.time()
+        if not self.active_futures:
+            logger.info("📊 ALL FUTURES STATUS: No active futures")
+            return
+        
+        logger.info(f"📊 ALL FUTURES STATUS: {len(self.active_futures)} futures active")
+        for future_id, future in self.active_futures.items():
+            start_time = self.future_start_times.get(future_id, current_time)
+            elapsed_time = current_time - start_time
+            
+            # Determine task type
+            if 'explore' in future_id:
+                task_type = "EXPLORE"
+            elif 'exploit' in future_id:
+                task_type = "EXPLOIT"
+            else:
+                task_type = "UNKNOWN"
+            
+            # Determine status
+            if elapsed_time < 60:
+                status = "healthy"
+            elif elapsed_time < 180:
+                status = "slow"
+            else:
+                status = "stuck"
+            
+            future_status = "running" if not future.done() else "completed"
+            
+            logger.info(f"  - {future_id}: {elapsed_time:.1f}s ({status}, {future_status}, {task_type})")
+            
+            # Show warning if approaching timeout
+            if elapsed_time > (self.future_timeout * 0.8):
+                remaining = self.future_timeout - elapsed_time
+                logger.warning(f"    ⚠️ {future_id} approaching timeout in {remaining:.1f}s")
+    
+    def _force_cleanup_stuck_futures(self):
+        """Force cleanup of all stuck futures in emergency situations"""
+        current_time = time.time()
+        stuck_count = 0
+        
+        for future_id, future in list(self.active_futures.items()):
+            start_time = self.future_start_times.get(future_id, current_time)
+            elapsed_time = current_time - start_time
+            
+            if elapsed_time > 180:  # More than 3 minutes
+                logger.warning(f"🔄 FORCE CLEANUP: Cancelling stuck future {future_id} (running for {elapsed_time:.1f}s)")
+                try:
+                    future.cancel()
+                except Exception as e:
+                    logger.error(f"Error cancelling future {future_id}: {e}")
+                
+                # Remove from tracking
+                del self.active_futures[future_id]
+                if future_id in self.future_start_times:
+                    del self.future_start_times[future_id]
+                self.failed_count += 1
+                self.completed_count += 1
+                stuck_count += 1
+        
+        if stuck_count > 0:
+            logger.warning(f"🧹 FORCE CLEANUP: Removed {stuck_count} stuck futures")
+        
+        return stuck_count
     
     def _fill_available_slots_concurrent(self):
         """Fill available slots with TRUE CONCURRENT subprocess execution"""
@@ -2855,41 +3324,111 @@ Generate {num_templates} templates:"""
                 
                 if plan_type == 'explore':
                     # Explore: generate new template and simulate CONCURRENTLY
-                    future = self.executor.submit(self._explore_and_simulate_concurrent)
-                    future_id = f"explore_{int(time.time() * 1000)}"
-                    self.active_futures[future_id] = future
-                    logger.info(f"🚀 Started CONCURRENT EXPLORE task: {future_id}")
+                        future = self.executor.submit(self._explore_and_simulate_concurrent)
+                        future_id = f"explore_{int(time.time() * 1000)}"
+                        self.active_futures[future_id] = future
+                        self.future_start_times[future_id] = time.time()
+                        logger.info(f"🚀 Started CONCURRENT EXPLORE task: {future_id}")
                 
                 elif plan_type == 'exploit':
                     # Exploit: try to use existing successful template
                     logger.info(f"🎯 EXPLOIT mode: Looking for successful templates...")
                     successful_templates = self._get_successful_templates()
                     if successful_templates:
-                        # Use best performing template
-                        best_template = max(successful_templates, key=lambda x: x.get('sharpe', 0))
-                        logger.info(f"🎯 EXPLOIT: Using best template with Sharpe={best_template.get('sharpe', 0):.3f}")
-                        future = self.executor.submit(self._exploit_and_simulate_concurrent, best_template)
-                        future_id = f"exploit_{int(time.time() * 1000)}"
-                        self.active_futures[future_id] = future
-                        logger.info(f"🚀 Started CONCURRENT EXPLOIT task: {future_id}")
+                        # Check if we're in exploitation phase - use weighted selection
+                        if self.exploitation_phase and self.top_templates:
+                            # Use exploitation phase logic with weighted selection
+                            exploitation_data = self.get_exploitation_template()
+                            if exploitation_data:
+                                # Create template dict for exploitation
+                                best_template = {
+                                    'template': exploitation_data['template'],
+                                    'region': exploitation_data['target_region'],
+                                    'sharpe': exploitation_data['original_sharpe'],
+                                    'margin': exploitation_data['original_margin']
+                                }
+                                logger.info(f"🎯 EXPLOITATION: Using weighted selection with Sharpe={best_template.get('sharpe', 0):.3f}")
+                            else:
+                                # Fallback to best template if exploitation fails
+                                best_template = max(successful_templates, key=lambda x: x.get('sharpe', 0))
+                                logger.info(f"🎯 EXPLOIT: Fallback to best template with Sharpe={best_template.get('sharpe', 0):.3f}")
+                        else:
+                            # Filter for elite templates that meet high performance criteria
+                            elite_templates = []
+                            for template in successful_templates:
+                                sharpe = template.get('sharpe', 0)
+                                fitness = template.get('fitness', 0)
+                                margin = template.get('margin', 0)
+                                
+                                # Only consider templates that meet the high bar
+                                if (sharpe > 1.25 and fitness > 1.0 and margin > 0.05):
+                                    elite_templates.append(template)
+                            
+                        if elite_templates:
+                            logger.info(f"🎯 EXPLOIT: {len(elite_templates)}/{len(successful_templates)} templates meet elite criteria")
+                            
+                            # Use weighted selection among elite templates
+                            performance_weights = []
+                            for template in elite_templates:
+                                # Use Sharpe ratio as the weight (higher Sharpe = higher weight)
+                                weight = max(template.get('sharpe', 0), 0.1)  # Minimum weight of 0.1
+                                performance_weights.append(weight)
+                            
+                            # Weighted random selection
+                            total_weight = sum(performance_weights)
+                            probabilities = [w / total_weight for w in performance_weights]
+                            selected_idx = random.choices(range(len(elite_templates)), weights=probabilities)[0]
+                            best_template = elite_templates[selected_idx]
+                            
+                            logger.info(f"🎯 EXPLOIT: Using elite template with Sharpe={best_template.get('sharpe', 0):.3f}, Fitness={best_template.get('fitness', 0):.3f}, Margin={best_template.get('margin', 0):.3f} (weight={probabilities[selected_idx]:.3f})")
+                            
+                            future = self.executor.submit(self._exploit_and_simulate_concurrent, best_template)
+                            future_id = f"exploit_{int(time.time() * 1000)}"
+                            self.active_futures[future_id] = future
+                            self.future_start_times[future_id] = time.time()
+                            logger.info(f"🚀 Started CONCURRENT EXPLOIT task: {future_id}")
+                        else:
+                            # No elite templates available, fallback to EXPLORE mode
+                            logger.warning(f"🎯 EXPLOIT: No elite templates found, falling back to EXPLORE mode")
+                            logger.info(f"📊 Available templates: {len(successful_templates)}")
+                            for i, template in enumerate(successful_templates[:3]):  # Show first 3 for debugging
+                                logger.info(f"   Template {i+1}: Sharpe={template.get('sharpe', 0):.3f}, Fitness={template.get('fitness', 0):.3f}, Margin={template.get('margin', 0):.3f}")
+                            
+                            # Fallback to explore mode instead of using mediocre templates
+                            logger.info(f"🔄 FALLBACK: Switching to EXPLORE mode due to no elite templates")
+                            future = self.executor.submit(self._explore_and_simulate_concurrent)
+                            future_id = f"explore_{int(time.time() * 1000)}"
+                            self.active_futures[future_id] = future
+                            self.future_start_times[future_id] = time.time()
+                            logger.info(f"🚀 Started CONCURRENT EXPLORE task: {future_id}")
                     else:
                         # No successful templates yet, fallback to explore
                         logger.info(f"🎯 EXPLOIT: No successful templates found, falling back to EXPLORE")
                         future = self.executor.submit(self._explore_and_simulate_concurrent)
                         future_id = f"explore_fallback_{int(time.time() * 1000)}"
                         self.active_futures[future_id] = future
+                        self.future_start_times[future_id] = time.time()
                         logger.info(f"🚀 Started CONCURRENT EXPLORE (fallback) task: {future_id}")
     
     def _explore_and_simulate_concurrent(self) -> Optional[TemplateResult]:
         """CONCURRENTLY explore new template and simulate it"""
         try:
+            logger.info(f"🔍 CONCURRENT EXPLORE: Starting exploration task")
+            
             # Generate new template with retry logic
+            logger.info(f"🔍 CONCURRENT EXPLORE: Selecting region...")
             region = self.select_region_by_pyramid()
+            logger.info(f"🔍 CONCURRENT EXPLORE: Selected region {region}")
+            
+            logger.info(f"🔍 CONCURRENT EXPLORE: Selecting delay...")
             delay = self.select_optimal_delay(region)
+            logger.info(f"🔍 CONCURRENT EXPLORE: Selected delay {delay}")
+            
+            logger.info(f"🔍 CONCURRENT EXPLORE: Generating templates for {region}...")
             templates = self.generate_templates_for_region_with_retry(region, 1, 5)
             
             if not templates:
-                logger.warning(f"No templates generated for {region}")
+                logger.warning(f"⚠️ CONCURRENT EXPLORE: No templates generated for {region}")
                 return TemplateResult(
                     template="",
                     region=region,
@@ -2900,13 +3439,19 @@ Generate {num_templates} templates:"""
                 )
             
             template = templates[0]
+            logger.info(f"🔍 CONCURRENT EXPLORE: Generated template, starting simulation...")
             logger.info(f"🔍 EXPLORING new template: {template['template'][:50]}...")
             
             # Simulate the template CONCURRENTLY
-            return self._simulate_template_concurrent(template, region, delay)
+            logger.info(f"🔍 CONCURRENT EXPLORE: Calling _simulate_template_concurrent...")
+            result = self._simulate_template_concurrent(template, region, delay)
+            logger.info(f"🔍 CONCURRENT EXPLORE: Simulation completed, result: {result is not None}")
+            return result
             
         except Exception as e:
-            logger.error(f"Error in explore_and_simulate_concurrent: {e}")
+            logger.error(f"❌ CONCURRENT EXPLORE ERROR: {e}")
+            import traceback
+            logger.error(f"❌ CONCURRENT EXPLORE TRACEBACK: {traceback.format_exc()}")
             return TemplateResult(
                 template="",
                 region="",
@@ -2919,8 +3464,21 @@ Generate {num_templates} templates:"""
     def _exploit_and_simulate_concurrent(self, best_template: Dict) -> Optional[TemplateResult]:
         """CONCURRENTLY exploit existing template and simulate it with enhanced variations"""
         try:
-            region = best_template['region']
+            logger.info(f"🎯 CONCURRENT EXPLOIT: Starting exploitation task")
+            
+            # During exploitation phase, use different regions even if region is specified
+            if self.exploitation_phase:
+                original_region = best_template['region']
+                available_regions = [r for r in self.regions if r != original_region]
+                region = random.choice(available_regions)
+                logger.info(f"🎯 CONCURRENT EXPLOIT: Using different region {region} (original: {original_region})")
+            else:
+                region = best_template['region']
+                logger.info(f"🎯 CONCURRENT EXPLOIT: Using original region {region}")
+            
+            logger.info(f"🎯 CONCURRENT EXPLOIT: Selecting delay...")
             delay = self.select_optimal_delay(region)
+            logger.info(f"🎯 CONCURRENT EXPLOIT: Selected delay {delay}")
             
             # Generate all types of variations
             field_variations = self.generate_template_variations(best_template, region, delay)
@@ -2987,9 +3545,13 @@ Generate {num_templates} templates:"""
     def _simulate_template_concurrent(self, template: Dict, region: str, delay: int) -> Optional[TemplateResult]:
         """CONCURRENTLY simulate a single template"""
         try:
+            logger.info(f"🎮 CONCURRENT SIMULATION: Starting simulation for region {region}")
+            
             # Create simulation data with all required fields
             # Use neutralization from template variation if available
             neutralization = template.get('neutralization', 'INDUSTRY')
+            logger.info(f"🎮 CONCURRENT SIMULATION: Using neutralization {neutralization}")
+            
             simulation_data = {
                 'type': 'REGULAR',
                 'settings': {
@@ -3013,12 +3575,14 @@ Generate {num_templates} templates:"""
                 'regular': template['template']
             }
             
+            logger.info(f"🎮 CONCURRENT SIMULATION: Submitting simulation to API...")
             # Submit simulation
             response = self.sess.post('https://api.worldquantbrain.com/simulations', json=simulation_data)
+            logger.info(f"🎮 CONCURRENT SIMULATION: API response status: {response.status_code}")
             
             if response.status_code != 201:
                 error_message = f"Failed to submit simulation: {response.status_code}"
-                logger.error(f"Failed to submit simulation: {response.status_code} - {response.text}")
+                logger.error(f"❌ CONCURRENT SIMULATION: Failed to submit simulation: {response.status_code} - {response.text}")
                 # Record the failure for learning
                 self.record_failure(region, template['template'], error_message)
                 
@@ -3032,9 +3596,10 @@ Generate {num_templates} templates:"""
                 )
             
             progress_url = response.headers.get('Location')
+            logger.info(f"🎮 CONCURRENT SIMULATION: Got progress URL: {progress_url}")
             if not progress_url:
                 error_message = "No Location header in response"
-                logger.error(f"No Location header in response")
+                logger.error(f"❌ CONCURRENT SIMULATION: No Location header in response")
                 # Record the failure for learning
                 self.record_failure(region, template['template'], error_message)
                 
@@ -3047,8 +3612,11 @@ Generate {num_templates} templates:"""
                     timestamp=time.time()
                 )
             
+            logger.info(f"🎮 CONCURRENT SIMULATION: Starting to monitor simulation progress...")
             # Monitor simulation progress CONCURRENTLY
-            return self._monitor_simulation_concurrent(progress_url, template, region, delay)
+            result = self._monitor_simulation_concurrent(progress_url, template, region, delay)
+            logger.info(f"🎮 CONCURRENT SIMULATION: Monitoring completed, result: {result is not None}")
+            return result
             
         except Exception as e:
             error_message = f"Simulation error: {str(e)}"
@@ -3069,14 +3637,23 @@ Generate {num_templates} templates:"""
         """CONCURRENTLY monitor simulation progress"""
         max_wait_time = 3600  # 1 hour maximum wait time
         start_time = time.time()
+        check_count = 0
+        
+        logger.info(f"🎮 MONITORING: Starting to monitor simulation progress (max {max_wait_time}s)")
         
         while (time.time() - start_time) < max_wait_time:
             try:
+                check_count += 1
+                elapsed = time.time() - start_time
+                logger.info(f"🎮 MONITORING: Check #{check_count} (elapsed: {elapsed:.1f}s)")
+                
                 response = self.sess.get(progress_url)
+                logger.info(f"🎮 MONITORING: Status check response: {response.status_code}")
                 
                 if response.status_code == 200:
                     data = response.json()
                     status = data.get('status')
+                    logger.info(f"🎮 MONITORING: Simulation status: {status}")
                     
                     if status == 'COMPLETE':
                         # Get the alphaId from the simulation response
@@ -3160,7 +3737,7 @@ Generate {num_templates} templates:"""
                             timestamp=time.time()
                         )
                     
-                    elif status in ['FAILED', 'ERROR']:
+                    elif status in ['FAILED', 'ERROR', 'FAIL']:
                         error_message = data.get('message', 'Unknown error')
                         # Record the failure for learning
                         self.record_failure(region, template['template'], error_message)
@@ -3173,6 +3750,33 @@ Generate {num_templates} templates:"""
                             error_message=error_message,
                             timestamp=time.time()
                         )
+                    
+                    elif status == 'WARNING':
+                        # WARNING status should be treated as failed immediately
+                        logger.warning(f"⚠️ Simulation in WARNING status, treating as failed immediately")
+                        error_message = "Simulation failed with WARNING status"
+                        self.record_failure(region, template['template'], error_message)
+                        
+                        return TemplateResult(
+                            template=template['template'],
+                            region=region,
+                            settings={'region': region, 'delay': delay},
+                            success=False,
+                            error_message=error_message,
+                            timestamp=time.time()
+                        )
+                    
+                    elif status is None:
+                        # None status might mean simulation is still starting
+                        logger.info(f"⏳ Simulation status is None, waiting... (elapsed: {elapsed:.1f}s)")
+                        time.sleep(5)  # Wait 5 seconds before next check
+                        continue
+                    
+                    else:
+                        # Unknown status - log and continue with timeout
+                        logger.info(f"❓ Unknown simulation status: {status} (elapsed: {elapsed:.1f}s)")
+                        time.sleep(5)  # Wait 5 seconds before next check
+                        continue
                 
                 elif response.status_code == 401:
                     logger.info("Session expired, re-authenticating...")
