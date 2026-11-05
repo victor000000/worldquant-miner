@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: agent_network
       POSTGRES_USER: agent_user
-      POSTGRES_PASSWORD: agent_password
+      POSTGRES_PASSWORD: ${AGENT_DB_PASSWORD:?Set a private AGENT_DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d
@@ -33,9 +33,11 @@ services:
       dockerfile: Dockerfile
     container_name: agent-network-hub
     environment:
-      - DATABASE_URL=postgresql://agent_user:agent_password@postgres:5432/agent_network
+      - DATABASE_URL=${AGENT_DATABASE_URL:?Set a private AGENT_DATABASE_URL}
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=your-super-secret-jwt-key
+      - JWT_SECRET=${JWT_SECRET:?Set a private JWT_SECRET}
+      - AGENT_HUB_USERNAME=${AGENT_HUB_USERNAME:?Set AGENT_HUB_USERNAME}
+      - AGENT_HUB_PASSWORD=${AGENT_HUB_PASSWORD:?Set a private AGENT_HUB_PASSWORD}
       - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
       - WORLDQUANT_CREDENTIALS_PATH=/app/credentials/credential.txt
     volumes:
@@ -77,8 +79,8 @@ services:
     container_name: agent-network-n8n
     environment:
       - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=admin123
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:?Set N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:?Set a private N8N_BASIC_AUTH_PASSWORD}
       - N8N_HOST=localhost
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
@@ -91,7 +93,7 @@ services:
       - DB_POSTGRESDB_PORT=5432
       - DB_POSTGRESDB_DATABASE=agent_network
       - DB_POSTGRESDB_USER=agent_user
-      - DB_POSTGRESDB_PASSWORD=agent_password
+      - DB_POSTGRESDB_PASSWORD=${AGENT_DB_PASSWORD:?Set a private AGENT_DB_PASSWORD}
       - AGENT_HUB_URL=http://agent-hub:8000
     volumes:
       - n8n_data:/home/node/.n8n
@@ -160,7 +162,7 @@ services:
     image: grafana/grafana:latest
     container_name: agent-network-grafana
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set a private GRAFANA_ADMIN_PASSWORD}
     volumes:
       - grafana_data:/var/lib/grafana
     ports:

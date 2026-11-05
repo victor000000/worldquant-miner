@@ -13,13 +13,13 @@ class Agent(Base):
     agent_type = Column(String, nullable=False)  # alpha_generator, workflow, data, analysis
     status = Column(String, default="active")  # active, inactive, error
     capabilities = Column(JSON, default=dict)
-    metadata = Column(JSON, default=dict)
+    agent_metadata = Column("metadata", JSON, default=dict)
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     last_heartbeat = Column(DateTime)
     
     # Relationships
-    messages = relationship("Message", back_populates="agent")
+    messages = relationship("Message", back_populates="agent", foreign_keys="Message.sender_id")
     workflows = relationship("Workflow", back_populates="agent")
 
 class Message(Base):
@@ -30,13 +30,13 @@ class Message(Base):
     recipient_id = Column(String, ForeignKey("agents.id"))
     message_type = Column(String, nullable=False)  # request, response, event
     payload = Column(JSON, nullable=False)
-    metadata = Column(JSON, default=dict)
+    message_metadata = Column("metadata", JSON, default=dict)
     created_at = Column(DateTime, default=func.now())
     processed_at = Column(DateTime)
     status = Column(String, default="pending")  # pending, processed, failed
     
     # Relationships
-    agent = relationship("Agent", back_populates="messages")
+    agent = relationship("Agent", back_populates="messages", foreign_keys=[sender_id])
 
 class Workflow(Base):
     __tablename__ = "workflows"

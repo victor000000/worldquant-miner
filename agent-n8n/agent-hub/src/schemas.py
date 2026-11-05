@@ -42,7 +42,7 @@ class AgentResponse(BaseModel):
     agent_type: AgentType
     status: AgentStatus
     capabilities: Dict[str, Any]
-    metadata: Dict[str, Any]
+    metadata: Dict[str, Any] = Field(validation_alias="agent_metadata")
     created_at: datetime
     updated_at: datetime
     last_heartbeat: Optional[datetime] = None
@@ -64,7 +64,7 @@ class MessageResponse(BaseModel):
     recipient_id: str
     message_type: MessageType
     payload: Dict[str, Any]
-    metadata: Dict[str, Any]
+    metadata: Dict[str, Any] = Field(validation_alias="message_metadata")
     created_at: datetime
     processed_at: Optional[datetime] = None
     status: str

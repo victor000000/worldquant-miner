@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 import json
@@ -39,7 +40,7 @@ class AgentManager:
                 name=agent_data.name,
                 agent_type=agent_data.agent_type.value,
                 capabilities=agent_data.capabilities,
-                metadata=agent_data.metadata
+                agent_metadata=agent_data.metadata
             )
             
             db.add(agent)
@@ -70,9 +71,8 @@ class AgentManager:
     async def list_agents(self, db: AsyncSession) -> List[Agent]:
         """List all registered agents"""
         try:
-            result = await db.execute("SELECT * FROM agents ORDER BY created_at DESC")
-            agents = result.fetchall()
-            return [Agent(**dict(agent)) for agent in agents]
+            result = await db.execute(select(Agent).order_by(Agent.created_at.desc()))
+            return list(result.scalars())
         except Exception as e:
             logger.error(f"Error listing agents: {e}")
             return []
@@ -80,11 +80,8 @@ class AgentManager:
     async def get_agent(self, agent_id: str, db: AsyncSession) -> Optional[Agent]:
         """Get agent by ID"""
         try:
-            result = await db.execute("SELECT * FROM agents WHERE id = :agent_id", {"agent_id": agent_id})
-            agent_data = result.fetchone()
-            if agent_data:
-                return Agent(**dict(agent_data))
-            return None
+            result = await db.execute(select(Agent).where(Agent.id == agent_id))
+            return result.scalar_one_or_none()
         except Exception as e:
             logger.error(f"Error getting agent {agent_id}: {e}")
             return None
@@ -101,7 +98,7 @@ class AgentManager:
                 del self.websocket_agents[agent_id]
             
             # Update database
-            await db.execute("UPDATE agents SET status = 'inactive' WHERE id = :agent_id", {"agent_id": agent_id})
+            await db.execute(update(Agent).where(Agent.id == agent_id).values(status="inactive"))
             await db.commit()
             
             # Log system event
@@ -123,7 +120,7 @@ class AgentManager:
                 recipient_id=message_data.recipient_id,
                 message_type=message_data.message_type.value,
                 payload=message_data.payload,
-                metadata=message_data.metadata
+                message_metadata=message_data.metadata
             )
             
             db.add(message)
@@ -154,11 +151,9 @@ class AgentManager:
         """Get messages for an agent"""
         try:
             result = await db.execute(
-                "SELECT * FROM messages WHERE recipient_id = :agent_id ORDER BY created_at DESC LIMIT 100",
-                {"agent_id": agent_id}
+                select(Message).where(Message.recipient_id == agent_id).order_by(Message.created_at.desc()).limit(100)
             )
-            messages = result.fetchall()
-            return [Message(**dict(msg)) for msg in messages]
+            return list(result.scalars())
         except Exception as e:
             logger.error(f"Error getting messages for {agent_id}: {e}")
             return []
@@ -207,9 +202,8 @@ class AgentManager:
     async def list_workflows(self, db: AsyncSession) -> List[Workflow]:
         """List all workflows"""
         try:
-            result = await db.execute("SELECT * FROM workflows ORDER BY created_at DESC")
-            workflows = result.fetchall()
-            return [Workflow(**dict(wf)) for wf in workflows]
+            result = await db.execute(select(Workflow).order_by(Workflow.created_at.desc()))
+            return list(result.scalars())
         except Exception as e:
             logger.error(f"Error listing workflows: {e}")
             return []
@@ -218,13 +212,12 @@ class AgentManager:
         """Execute a workflow"""
         try:
             # Get workflow details
-            result = await db.execute("SELECT * FROM workflows WHERE id = :workflow_id", {"workflow_id": workflow_id})
-            workflow_data = result.fetchone()
+            result = await db.execute(select(Workflow).where(Workflow.id == workflow_id))
+            workflow = result.scalar_one_or_none()
             
-            if not workflow_data:
+            if workflow is None:
                 return {"error": "Workflow not found"}
             
-            workflow = Workflow(**dict(workflow_data))
             
             # Execute based on workflow type
             if workflow.workflow_type == "n8n":

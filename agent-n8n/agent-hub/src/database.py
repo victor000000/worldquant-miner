@@ -2,21 +2,24 @@ from sqlalchemy import create_engine, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from .credential_policy import required_environment
+from .database_credential_guard import install_database_credential_guard
 import os
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Database URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://agent_user:agent_password@localhost:5432/agent_network")
+DATABASE_URL = required_environment("DATABASE_URL")
 
 # Convert to async URL if needed
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 # Create async engine
-engine = create_async_engine(DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(DATABASE_URL, echo=False, hide_parameters=True)
+install_database_credential_guard()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
 # Create base class for models
 Base = declarative_base()

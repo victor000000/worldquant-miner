@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from .database import get_db, init_db
 from .models import Agent, Message, Workflow
 from .schemas import AgentCreate, AgentResponse, MessageCreate, WorkflowCreate
-from .auth import get_current_user, create_access_token
+from .auth import get_current_user, create_access_token, authenticate_user
 from .websocket_manager import WebSocketManager
 from .agent_manager import AgentManager
 
@@ -70,9 +70,7 @@ async def health_check():
 # Authentication endpoints
 @app.post("/auth/login")
 async def login(credentials: dict):
-    # Simple authentication for demo purposes
-    # In production, implement proper user authentication
-    if credentials.get("username") == "admin" and credentials.get("password") == "admin123":
+    if authenticate_user(credentials.get("username"), credentials.get("password")):
         token = create_access_token(data={"sub": credentials["username"]})
         return {"access_token": token, "token_type": "bearer"}
     raise HTTPException(

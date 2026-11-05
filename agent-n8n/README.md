@@ -105,9 +105,11 @@ docker-compose logs -f frontend
 # docker-compose.yml
 agent-hub:
   environment:
-    - DATABASE_URL=postgresql://agent_user:agent_password@postgres:5432/agent_network
+    - DATABASE_URL=${AGENT_DATABASE_URL:?Set a private AGENT_DATABASE_URL}
     - REDIS_URL=redis://redis:6379
-    - JWT_SECRET=your-super-secret-jwt-key
+    - JWT_SECRET=${JWT_SECRET:?Set a private JWT_SECRET}
+    - AGENT_HUB_USERNAME=${AGENT_HUB_USERNAME:?Set AGENT_HUB_USERNAME}
+    - AGENT_HUB_PASSWORD=${AGENT_HUB_PASSWORD:?Set a private AGENT_HUB_PASSWORD}
     - MOONSHOT_API_KEY=${MOONSHOT_API_KEY}
 ```
 
@@ -127,8 +129,8 @@ alpha-generator:
 n8n:
   environment:
     - N8N_BASIC_AUTH_ACTIVE=true
-    - N8N_BASIC_AUTH_USER=admin
-    - N8N_BASIC_AUTH_PASSWORD=admin123
+    - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:?Set N8N_BASIC_AUTH_USER}
+    - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:?Set a private N8N_BASIC_AUTH_PASSWORD}
     - DB_TYPE=postgresdb
     - DB_POSTGRESDB_HOST=postgres
     - DB_POSTGRESDB_DATABASE=agent_network
@@ -316,4 +318,16 @@ Bei Fragen oder Problemen:
 
 ---
 
-**Hinweis**: Stellen Sie sicher, dass Sie gültige WorldQuant Brain Credentials und einen Moonshot API Key haben, bevor Sie das System starten. 
+**Hinweis**: Stellen Sie sicher, dass Sie gültige WorldQuant Brain Credentials und einen Moonshot API Key haben, bevor Sie das System starten.
+## Operator credentials and database writes
+
+Copy `env.example` to the ignored `.env` file and supply private values before
+starting services. Empty required values stop Compose; there is no demo login,
+JWT signing secret, or database-password fallback. Never commit `.env` or send
+credential values in agent metadata, messages, workflow settings, or event
+payloads. Use a nonsecret environment/file reference instead. The hub guards
+ORM writes before SQL and suppresses SQL parameter logging.
+
+See [the offline credential regression tests and limits](../ci/README.md#agent-hub-operator-credential-policy).
+No live database migration was performed by these source changes. The n8n
+platform credential storage is separate from the hub operator policy.

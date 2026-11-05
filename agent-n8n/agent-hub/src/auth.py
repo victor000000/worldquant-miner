@@ -7,7 +7,7 @@ import os
 from typing import Optional
 
 # Security configuration
-SECRET_KEY = os.getenv("JWT_SECRET", "your-super-secret-jwt-key")
+from .credential_policy import authenticate_operator, signing_key, CredentialConfigurationError
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -33,18 +33,18 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, signing_key(), algorithm=ALGORITHM)
     return encoded_jwt
 
 def verify_token(token: str) -> Optional[dict]:
     """Verify and decode a JWT token"""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, signing_key(), algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             return None
         return payload
-    except JWTError:
+    except (JWTError, CredentialConfigurationError):
         return None
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -68,11 +68,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 def authenticate_user(username: str, password: str) -> bool:
     """Authenticate a user with username and password"""
-    # For demo purposes, hardcoded credentials
-    # In production, this should check against a database
-    if username == "admin" and password == "admin123":
-        return True
-    return False
+    return authenticate_operator(username, password)
 
 def create_user_token(username: str) -> dict:
     """Create a token for a user"""
