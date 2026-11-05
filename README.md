@@ -1,5 +1,7 @@
 # WorldQuant Alpha Generator
 
+Offline validation and its limits are documented in [CI checks](ci/README.md).
+
 This project is a collection of scripts that generate and submit alphas to the WorldQuant platform.
 
 ## 🎯 **Recommended Approach: Naive-Ollama**

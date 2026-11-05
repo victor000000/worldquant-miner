@@ -13,7 +13,10 @@ from datetime import datetime
 from flask import Flask, render_template_string, jsonify, request
 from flask_cors import CORS
 import psutil
-import GPUtil
+try:
+    import GPUtil
+except ImportError:
+    GPUtil = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -344,7 +347,7 @@ def get_system_metrics():
         gpu_info = []
         gpu_count = 0
         try:
-            gpus = GPUtil.getGPUs()
+            gpus = GPUtil.getGPUs() if GPUtil is not None else []
             gpu_count = len(gpus)
             for gpu in gpus:
                 gpu_info.append({
@@ -353,7 +356,7 @@ def get_system_metrics():
                     'memory_total': gpu.memoryTotal,
                     'utilization': gpu.load * 100,
                     'temperature': gpu.temperature
-                                    })
+                })
         except Exception as e:
             gpu_count = 0
             gpu_info = []
@@ -380,14 +383,14 @@ def get_ollama_status():
         import requests
         response = requests.get('http://localhost:11434/api/tags', timeout=5)
         return response.status_code == 200
-                    except:
+    except Exception:
         return False
 
 def get_orchestrator_status():
     """Check if alpha orchestrator is running."""
     try:
         return os.path.exists('orchestrator_state.json')
-                        except:
+    except Exception:
         return False
 
 def get_mining_stats():
@@ -404,7 +407,7 @@ def get_mining_stats():
                     'current_cycle': state.get('current_cycle', 0),
                     'total_cycles': state.get('total_cycles', 0)
                 }
-        except Exception as e:
+    except Exception:
         pass
     
     return {
@@ -431,10 +434,10 @@ def get_ollama_info():
                 'available_models': models,
                 'last_update': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
-        except Exception as e:
+    except Exception:
         pass
             
-            return {
+    return {
         'current_model': 'Unknown',
         'model_loaded': False,
         'available_models': [],

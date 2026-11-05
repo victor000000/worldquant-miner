@@ -114,7 +114,7 @@ class MultiArmBandit:
     
     def _settings_to_key(self, settings: SimulationSettings) -> str:
         """Convert settings to a unique key."""
-        return f"{settings.region}_{settings.universe}_{settings.instrumentType}_{settings.neutralization}_{settings.truncation}"
+        return json.dumps(asdict(settings), sort_keys=True)
     
     def save_state(self, filename: str):
         """Save bandit state to file."""
@@ -125,7 +125,13 @@ class MultiArmBandit:
         """Load bandit state from file."""
         if os.path.exists(filename):
             with open(filename, 'rb') as f:
-                self.arms = pickle.load(f)
+                saved_arms = pickle.load(f)
+            # Re-key existing local state so delay/maxTrade variations remain distinct.
+            self.arms = {
+                self._settings_to_key(arm['settings']): arm
+                for arm in saved_arms.values()
+            }
+            self.total_pulls = sum(arm['count'] for arm in self.arms.values())
 
 class GeneticAlgorithm:
     """Genetic algorithm for evolving alpha expressions."""
@@ -488,20 +494,20 @@ class AdaptiveAlphaMiner:
             max_trade_options = ["ON", "OFF"]  # Enable max trade for ASI and CHN
         
         for delay in delays:
-        for neutralization in neutralizations:
-            for truncation in truncations:
+            for neutralization in neutralizations:
+                for truncation in truncations:
                     for max_trade in max_trade_options:
-                settings = SimulationSettings(
+                        settings = SimulationSettings(
                             region=region,
                             universe=universe,
-                    instrumentType="EQUITY",
+                            instrumentType="EQUITY",
                             delay=delay,
-                    neutralization=neutralization,
-                    truncation=truncation,
-                    maxTrade=max_trade
-                )
-                self.bandit.add_arm(settings)
-        
+                            neutralization=neutralization,
+                            truncation=truncation,
+                            maxTrade=max_trade,
+                        )
+                        self.bandit.add_arm(settings)
+
         logger.info(f"Initialized {len(self.bandit.arms)} settings variations for universe {universe} in region {region}")
         
         # Validate that all arms use the correct region
@@ -582,6 +588,7 @@ class AdaptiveAlphaMiner:
             expressions = []
             
             for i in range(count):
+                previous_count = len(expressions)
                 # Randomly select components from the actual API data
                 selected_fields = random.sample(field_info, min(3, len(field_info)))
                 selected_operators = random.sample(operator_info, min(5, len(operator_info)))
@@ -678,23 +685,23 @@ JSON:"""
                             generated_expressions = []
                         
                         # Validate and add expressions
-                    field_ids = [field_id for field_id, _ in selected_fields]
+                        field_ids = [field_id for field_id, _ in selected_fields]
                         for expr in generated_expressions:
                             if isinstance(expr, str) and expr.strip():
                                 expr = expr.strip()
                                 # Validate that it contains at least one of our selected fields
                                 if any(field_id in expr for field_id in field_ids):
-                        # Additional validation - check for basic syntax
+                                    # Additional validation - check for basic syntax
                                     if '(' in expr and ')' in expr:
                                         expressions.append(expr)
                                         logger.info(f"Generated expression: {expr}")
-                        else:
+                                    else:
                                         logger.warning(f"Generated expression has invalid syntax: {expr}")
-                    else:
+                                else:
                                     logger.warning(f"Generated expression doesn't contain selected fields: {expr}")
                         
                         # If we got valid expressions, continue to next iteration
-                        if expressions:
+                        if len(expressions) > previous_count:
                             continue
                             
                     except json.JSONDecodeError as e:
@@ -734,18 +741,18 @@ JSON:"""
                                             expressions.append(expr)
                                             logger.info(f"Generated expression (fixed JSON): {expr}")
                             
-                            if expressions:
+                            if len(expressions) > previous_count:
                                 continue
                                 
                         except Exception as fix_error:
                             logger.warning(f"Failed to fix JSON: {fix_error}")
                     
                     # If JSON parsing failed or no valid expressions, use fallback
-                        field_id, _ = random.choice(selected_fields)
-                        operator_name, _ = random.choice(selected_operators)
-                        fallback_expr = f"{operator_name}({field_id}, {lookback})"
-                        expressions.append(fallback_expr)
-                        logger.info(f"Using fallback expression {i+1}: {fallback_expr}")
+                    field_id, _ = random.choice(selected_fields)
+                    operator_name, _ = random.choice(selected_operators)
+                    fallback_expr = f"{operator_name}({field_id}, {lookback})"
+                    expressions.append(fallback_expr)
+                    logger.info(f"Using fallback expression {i+1}: {fallback_expr}")
                 else:
                     # Fallback if Ollama fails
                     field_id, _ = random.choice(selected_fields)

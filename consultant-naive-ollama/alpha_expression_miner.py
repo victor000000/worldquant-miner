@@ -644,7 +644,11 @@ class AlphaExpressionMiner:
                                             sleep(wait_time)
                                         else:
                                             logger.warning(f"Max retries reached ({max_retries}), giving up on {len(simulation_queue)} remaining simulations")
-                                            logger.warning(f"Failed simulations: {[f'alpha {sim['alpha_idx']+1}, config {sim['config_idx']+1}' for sim in simulation_queue]}")
+                                            failed_labels = [
+                                                "alpha {}, config {}".format(sim["alpha_idx"] + 1, sim["config_idx"] + 1)
+                                                for sim in simulation_queue
+                                            ]
+                                            logger.warning("Failed simulations: %s", failed_labels)
                                 
                                 # Clear the queue after processing
                                 simulation_queue.clear()
