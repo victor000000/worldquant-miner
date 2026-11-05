@@ -80,3 +80,9 @@ with their obsolete root tutorial. The remaining n8n platform still has its own
 generic authentication and provider-credential persistence; the hub guard does
 not govern n8n's internal database. No claim is made that all credential-capable
 storage in that third-party platform is removed.
+
+The supplied n8n custom node defines no credential objects and no exported n8n
+workflows/credential imports are shipped. Compose disables execution-payload
+saving; the project policy keeps reusable provider secrets in the agent-service
+environment/private files. See [n8n storage boundary](../agent-n8n/README.md#n8n-storage-boundary)
+for remaining platform persistence and deployment limitations.

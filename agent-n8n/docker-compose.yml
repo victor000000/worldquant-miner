@@ -86,6 +86,11 @@ services:
       - N8N_PROTOCOL=http
       - N8N_USER_MANAGEMENT_DISABLED=false
       - N8N_DIAGNOSTICS_ENABLED=false
+      # Keep workflow input/output and error payloads out of execution history.
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=none
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none
+      - EXECUTIONS_DATA_SAVE_ON_PROGRESS=false
+      - EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=false
       - WEBHOOK_URL=http://localhost:5678/
       - GENERIC_TIMEZONE=UTC
       - DB_TYPE=postgresdb

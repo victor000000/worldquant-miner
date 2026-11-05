@@ -331,3 +331,23 @@ ORM writes before SQL and suppresses SQL parameter logging.
 See [the offline credential regression tests and limits](../ci/README.md#agent-hub-operator-credential-policy).
 No live database migration was performed by these source changes. The n8n
 platform credential storage is separate from the hub operator policy.
+
+### n8n storage boundary
+
+Do not create n8n credential objects or paste passwords, API keys, or bearer
+tokens into workflow parameters, pinned data, messages, or imported workflows.
+Keep WorldQuant credentials in the private mounted file and Moonshot keys in
+the alpha-generator environment; n8n should pass business data to the agent
+services, which resolve those secrets. The supplied AgentHub custom node has
+no credential object or secret input, and this repository ships no exported
+n8n workflows or credential imports.
+
+Compose disables success, failure, progress and manual execution-data saving
+using [n8n's documented settings](https://docs.n8n.io/hosting/configuration/environment-variables/executions/).
+This reduces accidental payload retention but does not block credential-object
+creation, workflow-specific overrides, pinned data, user authentication storage,
+or other third-party persistence. This is a project policy, not a database-level
+enforcement guarantee for n8n. Full Docker/custom-node integration is unverified.
+No local n8n database or running deployment was found during this review; remote
+deployments were not inspected. Existing data must be inventoried and privately
+backed up before any removal; no runtime data was modified here.
